@@ -60,7 +60,6 @@ def toy_model(input_shape):
     
     Returns:
         an instance of the model created
-
 """
 def model(input_shape):
 
