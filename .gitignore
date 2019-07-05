@@ -11,3 +11,7 @@
 # ignore vscode files
 **/.vscode
 **/.idea
+
+# ignore model files
+models/*
+

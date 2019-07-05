@@ -1,13 +1,67 @@
 import numpy as np
 import tensorflow as tf
+import os
+import datetime
 from tensorflow.keras import layers
 from tensorflow.keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D
 from tensorflow.keras.layers import MaxPooling2D
 from tensorflow.keras.models import Model
+from tensorflow.keras.models import save_model, load_model
+from tensorflow.keras.callbacks import ModelCheckpoint
+
+class ASRModel(object):
+
+    def __init__(self, architecture, input_size, **params):
+
+        """
+        Initialize the model with the desired architecture
+
+        Args:
+            architecture: architecture required
+            input_size: size of the input to the model
+
+        Raises:
+            Exception: If the architecture type isn't recognized.
+        """
+        
+        if (architecture == 'toy-model'):
+            self.architecture = toy_model(input_size, **params)
+        elif (architecture == 'cnn-trad-fpool3'):
+            self.architecture = cnn_trad_fpool3(input_size, **params)
+        else:
+            raise Exception('Model architecture not recognized')
+        
+    def save(self):
+
+        """
+        Save the model into models/YYYY-MM-DD HH/mm/ss
+
+        Args:
+            model: model to save
+        """ 
+        if 'models' not in os.listdir():
+            os.mkdir('models')
+        
+        date = datetime.datetime.now()
+        self.architecture.save('models/' + str(date))
+        return date
 
 
+def load(filepath):
+    """
+    Load the model from the filepath
 
-"""
+    Args:
+        model: model to save
+    """ 
+    model = load_model(filepath)
+
+    return model
+
+
+def toy_model(input_shape, **params):
+
+    """
     Create a CNN model:
     [padding] -> [Conv] -> [Batch-norm] -> [Relu] -> [MaxPool] -> [softmax]
 
@@ -17,9 +71,7 @@ from tensorflow.keras.models import Model
     
     Returns:
         an instance of the model created
-
-"""
-def toy_model(input_shape):
+    """
 
     # placeholder for the input
     X_input = Input(input_shape)
@@ -40,15 +92,16 @@ def toy_model(input_shape):
 
     # Fully connected
     X = Dense(5, activation='softmax', name='softmax-layer')(X)
-   
+
     # return the model instance.
     model = Model(inputs = X_input, outputs = X, name='1-conv-model')
 
     return model
 
 
+def cnn_trad_fpool3(input_shape, **params):
 
-"""
+    """
     Create the cnn-trad-fpool3 model as Convolutional Neural Networks for Small-fooprint Keyword Spotting
     [Sainath15]:
 
@@ -60,9 +113,7 @@ def toy_model(input_shape):
     
     Returns:
         an instance of the model created
-"""
-def model(input_shape):
-
+    """
     # input shape: (batch_size, time, freq, channels)
     X_input = Input(input_shape)
 
@@ -93,13 +144,13 @@ def model(input_shape):
     return model
 
 
-
+# test of functionalities
 if __name__ == "__main__":
 
     # input shapes
-    input_size = 40
+    input_size = 12
     frames = 97
-    m = 3000
+    m = 1000
     m_test= 150
 
     # creating random tensors for train and test
@@ -109,22 +160,27 @@ if __name__ == "__main__":
     X_test = np.random.randn(m_test, frames, input_size, 3)
     Y_test = np.random.randint(0, 4, m_test)
 
-    print(Y_test)
+    params = 5
    
     # initialize the computational graph
-    cnn_model = model((frames, input_size, 3))
+    model = ASRModel(architecture='toy-model', input_size=(frames, input_size, 3), params=params)
+    cnn_model = model.architecture
 
     cnn_model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
 
     # training
-    cnn_model.fit(x = X_train, y = Y_train, epochs=5, batch_size=2)
+    checkpoint = ModelCheckpoint('models/checkpoints', monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=3)
+    cnn_model.fit(x = X_train, y = Y_train, epochs=7, batch_size=3, callbacks=[checkpoint])
 
     # evaluate the model with test set
     preds = cnn_model.evaluate(X_test, Y_test)
 
+    date = model.save()
     print()
     print ("Loss = " + str(preds[0]))
     print ("Test Accuracy = " + str(preds[1]))
+
+    cnn_model = load('models/' + str(date))
     
     # print the summary of the layers(parameters)
     cnn_model.summary()
