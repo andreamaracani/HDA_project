@@ -10,22 +10,23 @@ parser = argparse.ArgumentParser(description='Train the Automatic Speech Recogni
 ## PARAMETERS
 ##############################
 
-# Dataset
+# Dataset arguments
 parser.add_argument('--datasetpath',    type=str,   default='data.npy',         help='Path of the dataset')
 
-# Network
-parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',  help="Architecture of the model to use")
-parser.add_argument('--kernel_size',    type=int,   default=128,                help='Kernel_size')
-parser.add_argument('--strides',        type=tuple, default=(1, 1),             help='Stride of the kernel')
-parser.add_argument('--pool',           type=tuple, default=(1,1),              help='Pool size')
-parser.add_argument('--layers',         type=int,   default=2,                  help='Number of convolutional stacked layers')
-parser.add_argument('--dropout_prob',   type=float, default=0.3,                help='Dropout probability')
+# Network arguments
+parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',      help="Architecture of the model to use")
+parser.add_argument('--filters',        type=int,   default=[128, 64], nargs="+",   help='Number of filters per layer')
+parser.add_argument('--kernel',         type=int,   default=[2, 2], nargs="+",      help='Kernel_size')
+parser.add_argument('--stride',         type=int,   default=[1, 1], nargs="+",      help='Stride of the kernel')
+parser.add_argument('--pool',           type=int,   default=[1,1], nargs="+",       help='Pool size')
+parser.add_argument('--hidden_layers',  type=int,   default=2,                      help='Number of convolutional stacked layers')
+parser.add_argument('--dropout_prob',   type=float, default=0.3,                    help='Dropout probability')
 
-# Training
+# Training argumenrs
 parser.add_argument('--batchsize',      type=int,   default=154,                help='Training batch size')
 parser.add_argument('--num_epochs',     type=int,   default=1000,               help='Number of training epochs')
 
-# Save
+# Save arguments
 parser.add_argument('--ckps_dir',     type=str,   default='model',    help='Where to save models and params')
 
 
@@ -38,8 +39,15 @@ if __name__ == "__main__":
     frames = 97
     coeffs = 12
 
+    pool=tuple(args.pool)
+    stride=tuple(args.stride)
+    kernel=tuple(args.kernel)
+
     # initialize the network
-    model = ASRModel(architecture=args.architecture, input_size=(frames, coeffs, 3), params=args)
+    model = ASRModel(architecture=args.architecture, input_size=(frames, coeffs, 3),  pooling_size=pool, \
+        stride=stride, kernel=kernel, filters=args.filters, hidden_layers=args.hidden_layers, dropout_prob=args.dropout_prob)
+
+
 
     # setting training
     model.architecture.compile(optimizer="adam", 

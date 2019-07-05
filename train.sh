@@ -1,6 +1,10 @@
 python src/train.py \
---architecture="toy-model" \
---layers=4 \
+--architecture="module-network" \
+--filters 32 64 128 256 128 \
+--kernel 3 3 \
+--stride 1 1 \
+--pool 2 2 \
+--hidden_layers=5 \
 --dropout_prob=0.3 \
 --batchsize=15 \
 --num_epochs=8 \

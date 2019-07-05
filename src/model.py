@@ -3,8 +3,7 @@ import tensorflow as tf
 import os
 import datetime
 from tensorflow.keras import layers
-from tensorflow.keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D
-from tensorflow.keras.layers import MaxPooling2D
+from tensorflow.keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import save_model, load_model
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -28,6 +27,8 @@ class ASRModel(object):
             self.architecture = toy_model(input_size, **params)
         elif (architecture == 'cnn-trad-fpool3'):
             self.architecture = cnn_trad_fpool3(input_size, **params)
+        elif (architecture == 'module-network'):
+            self.architecture = module_model(input_size, **params)
         else:
             raise Exception('Model architecture not recognized')
         
@@ -104,10 +105,8 @@ def cnn_trad_fpool3(input_shape, **params):
     """
     Create the cnn-trad-fpool3 model as Convolutional Neural Networks for Small-fooprint Keyword Spotting
     [Sainath15]:
-
     [Conv] -> [MaxPool] -> [Conv] -> [Linear] -> [Relu] -> [softmax]
     
-
     Args:
         input_shape: tuple of ints indicating the shape of the input
     
@@ -117,8 +116,10 @@ def cnn_trad_fpool3(input_shape, **params):
     # input shape: (batch_size, time, freq, channels)
     X_input = Input(input_shape)
 
+    X = ZeroPadding2D((0, 4))(X_input)
+
     # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
-    X = Conv2D(64, (64, 8), strides=(1,1), name='conv0')(X_input)
+    X = Conv2D(64, (64, 8), strides=(1,1), name='conv0')(X)
 
     # pooling in frequency within a region of t=1, f=3
     X = MaxPooling2D((1, 3), name='maxpool')(X)
@@ -143,6 +144,101 @@ def cnn_trad_fpool3(input_shape, **params):
     # return the model instance
     return model
 
+def block(input_size, filters, kernel=(3, 3), strides=(1, 1), pooling_size=(1, 1), dropout_prob=0.3):
+    """
+    Implements a convolutional block composed as
+    [Conv] -> [BatchNorm] -> [MaxPool] -> [ReLU]
+
+    Args:
+        input_size: size of the input to the convolutional block
+        output_size: size of the output of the convolutional block
+        kernel: tuple (h, w) indicating the dimension of the 2d-kernel
+        stride: tuple indicating the stride of the convolutional kernel
+        pooling_size: tuple indicating the dimension of the pool
+        dropout_prob: dropout probability after the convolutional block
+
+    Returns:
+        the convolutional block
+    """
+    # placeholder for the input
+    X_input = Input(input_size)
+
+    # checking for padding
+    frame_padding = int(input_size[0]) - kernel[0]
+    coeff_padding = int(input_size[1]) - kernel[1]
+
+    X = ZeroPadding2D((-min(frame_padding, 0), -min(coeff_padding, 0)))(X_input)
+
+    X = Conv2D(filters, kernel_size=kernel, strides=strides)(X)
+
+    X = BatchNormalization(axis=-1)(X)
+
+    #  checking for padding
+    frame_padding = int((int(input_size[1]) - kernel[0] + 1)/strides[0])
+    coeff_padding = int((int(input_size[2]) - kernel[1] + 1)/strides[1])
+    
+    if(frame_padding < 0 or coeff_padding < 0):
+        X = ZeroPadding2D((max(-frame_padding, 0), max(-coeff_padding, 0)))(X)
+
+    X = MaxPooling2D(pooling_size)(X)
+
+    X = Activation('relu')(X)
+
+    # TODO: need to pass the seed
+    X = Dropout(1-dropout_prob, noise_shape=None, seed=None)(X)
+
+    model = Model(inputs=X_input, outputs=X)
+
+    return model
+
+def module_model(input_size, **params):
+
+    """
+    Implements a convolutional network as composition of convolutional blocks
+
+    Args:
+        input_shape: size of the input to the network
+        params: dictionary of parameters that defines the structure
+
+    Returns:
+        the convolutional block
+    """
+
+    # retrieving the params
+    pooling_size = params['pooling_size']
+    stride = params['stride']
+    kernel = params['kernel']
+    filters = params['filters']
+    hidden_layers = params['hidden_layers']
+    dropout_prob = params['dropout_prob']
+
+    if(len(filters) != hidden_layers):
+        raise Exception('The number of filters must be equal to the number of blocks')
+    
+    # placeholder for input
+    X_input = Input(input_size)
+
+    # adding the first convolutional layer
+    X = block(input_size, filters[0], kernel=kernel, strides=stride, pooling_size=pooling_size)(X_input)
+    input_size = X.shape[1:]
+    for layer in range(hidden_layers-1):
+        X = block(input_size, filters[layer+1], kernel=kernel, strides=stride, pooling_size=pooling_size, dropout_prob=dropout_prob)(X)
+        input_size = X.shape[1:]
+    # flatten the filters
+    X = Flatten()(X)
+
+    # linear: linear layer with 32 units
+    X = Dense(64, activation='linear', name='linear')(X)
+
+    # relu: fully connected layer with 128 relu activation units
+    X = Dense(128, activation='relu', name='relu')(X)
+
+    # softmax: softmax layer
+    X = Dense(4, activation='softmax', name='softmax')(X)
+
+    model = Model(inputs=X_input, outputs=X)
+
+    return model
 
 # test of functionalities
 if __name__ == "__main__":
@@ -159,18 +255,24 @@ if __name__ == "__main__":
 
     X_test = np.random.randn(m_test, frames, input_size, 3)
     Y_test = np.random.randint(0, 4, m_test)
-
-    params = 5
    
-    # initialize the computational graph
-    model = ASRModel(architecture='toy-model', input_size=(frames, input_size, 3), params=params)
+    # testing parameters
+    pooling_size = (2, 2)
+    stride = (1, 1)
+    kernel  = (3, 3)
+    filters = [32, 64, 128, 256, 128]
+    hidden_layers = 5
+    dropout_prob=0.3
+    
+    model = ASRModel(architecture='cnn-trad-fpool3', input_size=(frames, input_size, 3), pooling_size=pooling_size, \
+        stride=stride, kernel=kernel, filters=filters, hidden_layers=hidden_layers, dropout_prob=dropout_prob)
+
     cnn_model = model.architecture
 
     cnn_model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
 
     # training
-    checkpoint = ModelCheckpoint('models/checkpoints', monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=3)
-    cnn_model.fit(x = X_train, y = Y_train, epochs=7, batch_size=3, callbacks=[checkpoint])
+    cnn_model.fit(x = X_train, y = Y_train, epochs=7, batch_size=7)
 
     # evaluate the model with test set
     preds = cnn_model.evaluate(X_test, Y_test)
