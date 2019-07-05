@@ -217,7 +217,9 @@ def get_features(signal,  sample_rate, hertz_from=300, hertz_to = None, number_o
     # delta-delta (acceleration coefficients)
     delta_delta = get_delta(delta)
 
-    return np.array([filterbank_energies,delta,delta_delta])
+    features = np.array([filterbank_energies,delta,delta_delta])
+
+    return np.transpose(features, (1, 2, 0))
 
 
 # see http://practicalcryptography.com/miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-mfccs/
