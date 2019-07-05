@@ -54,7 +54,7 @@ def get_samples_from_noise(input_path, output_path, input_name, output_name, nIn
         wavfile.write(output_path+output_name+str(i).zfill(len(str(nOutput)))+".wav", int(sample_rates[file_number]), file)
 
 
-def create_dataset(input_path, max_files_per_class = None, save = True, printInfo = True):
+def create_dataset(input_path, max_files_per_class=None, save=False, printInfo=True):
     """From the dataset input path it build up a big numpy array with all data.
     :param input_path: directory path of the dataset.
     :param max_files_per_class: maximum number of files for each class. If it is set to None we include all files
@@ -187,3 +187,86 @@ def get_all_files(input_path):
             directories.extend(dirs)
 
     return files_list
+
+
+def split_dataset(dataset, n_samples_test, training_percentage):
+    """Divide the dataset into training, validation and test set
+     :param dataset: a numpy array representing the dataset.
+     :param n_samples_test: the number of samples, for each class, in the test set.
+     :param training_percentage: percentage of remaining samples in the training set
+     :return: the three sets randomly permuted with corresponding three array of labels
+     """
+
+    assert 0 < training_percentage and  training_percentage < 1
+
+    # assert that there are enough samples for every class
+    for i in range(dataset.shape[0]):
+        assert len(dataset[i]) > n_samples_test
+
+    training = []
+    validation = []
+    test = []
+    labels_training = []
+    labels_validation = []
+    labels_test = []
+
+    # for every class
+    for i in range(dataset.shape[0]):
+        # number of samples present in class i
+        n_samples = len(dataset[i])#.shape[0]
+
+        n_samples_val = int((n_samples - n_samples_test)*(1-training_percentage))
+        n_samples_train = n_samples-n_samples_val-n_samples_test
+
+        p = np.random.permutation(list(range(n_samples)))
+
+        train_indices = p[0:n_samples_train]
+        val_indices = p[n_samples_train: n_samples_train+n_samples_val]
+        test_indices = p[n_samples_train+n_samples_val:]
+
+        # if different classes have different number of samples, then dataset[i] is a simple list
+        # and we need to put it inside a numpy array
+        current = np.array(dataset[i])
+
+        training.extend(current[train_indices])
+        validation.extend(current[val_indices])
+        test.extend(current[test_indices])
+
+        labels_training.extend([i for j in range(n_samples_train)])
+        labels_validation.extend([i for j in range(n_samples_val)])
+        labels_test.extend([i for j in range(n_samples_test)])
+
+    training, validation, test = np.array(training), np.array(validation), np.array(test)
+    labels_training, labels_validation, labels_test = np.array(labels_training), np.array(labels_validation),\
+                                                      np.array(labels_test)
+
+    training, labels_training = shuffle_dataset(training, labels_training)
+    validation, labels_validation = shuffle_dataset(validation, labels_validation)
+    test, labels_test = shuffle_dataset(test, labels_test)
+
+    return training, validation, test, labels_training, labels_validation, labels_test
+
+#NOT USED....
+# def complementary_indices(indices, number_of_indices, min_index=0):
+#     """Computes the list of all indices between min and maz that are not present in indices
+#     :param indices: a list of indices.
+#     :param number_of_indices: the number of indices (the number of origianl indices + number of complementary indices).
+#     :param min_index: the minumum index.
+#     :return: a list of indices (complementary to indices list)
+#     """
+#
+#     comp = set(range(min_index,min_index+number_of_indices))
+#     indices = set(indices)
+#
+#     return list(comp-indices)
+
+
+def shuffle_dataset(dataset, labels):
+    """Shuffle the dataset and labels numpy array with the same permutation
+    :param dataset: first array to permute.
+    :param labels: second array to permute.
+    :return: the two array randomly permuted (but in the same way)
+    """
+    p = np.random.permutation(len(labels))
+    return dataset[p], labels[p]
+
