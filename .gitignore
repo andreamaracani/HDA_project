@@ -1,5 +1,6 @@
-# ignore data folder
+# ignore data and dataset folder 
 **/data
+**/dataset
 
 # ignore compiled files
 *.pyc
@@ -9,3 +10,4 @@
 
 # ignore vscode files
 **/.vscode
+**/.idea
