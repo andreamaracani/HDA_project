@@ -1,5 +1,5 @@
 python src/train.py \
---architecture="module-network" \
+--architecture="cnn-trad-fpool3" \
 --filters 32 64 128 256 128 \
 --kernel 3 3 \
 --stride 1 1 \
@@ -7,4 +7,4 @@ python src/train.py \
 --hidden_layers=5 \
 --dropout_prob=0.3 \
 --batchsize=15 \
---num_epochs=8 \
+--num_epochs=50 \

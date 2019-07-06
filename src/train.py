@@ -1,5 +1,6 @@
 import argparse
 import tensorflow as tf
+import util as u
 from model import ASRModel
 from tensorflow.keras.callbacks import ModelCheckpoint
 
@@ -27,7 +28,7 @@ parser.add_argument('--batchsize',      type=int,   default=154,                
 parser.add_argument('--num_epochs',     type=int,   default=1000,               help='Number of training epochs')
 
 # Save arguments
-parser.add_argument('--ckps_dir',     type=str,   default='model',    help='Where to save models and params')
+parser.add_argument('--ckps_dir',     type=str,   default='models/',    help='Where to save models and params')
 
 
 import numpy as np
@@ -47,6 +48,7 @@ if __name__ == "__main__":
     model = ASRModel(architecture=args.architecture, input_size=(frames, coeffs, 3),  pooling_size=pool, \
         stride=stride, kernel=kernel, filters=args.filters, hidden_layers=args.hidden_layers, dropout_prob=args.dropout_prob)
 
+    # model = ASRModel(architecture='cnn-trad-fpool3', input_size=(frames, coeffs, 3))
 
 
     # setting training
@@ -54,23 +56,27 @@ if __name__ == "__main__":
                                 loss="sparse_categorical_crossentropy", 
                                 metrics=["accuracy"])
 
-    # TODO: loading the dataset
-    # X_train = pass
-    # Y_train = pass
+    # loading the dataset
+    input_path = "data/"
+    test_samples_per_class = 50
+    training_percentage = 0.7
+
+    dataset = u.create_dataset(input_path)
+    train, val, test, train_l, val_l, test_l = u.split_dataset(dataset,  test_samples_per_class, training_percentage)
 
     # creating random tensors for train and test
-    X_train = np.random.randn(1000, 97, 12, 3)
-    Y_train = np.random.randint(0, 4, 1000)
+    # X_train = np.random.randn(1000, 97, 12, 3)
+    # Y_train = np.random.randint(0, 4, 1000)
 
-    X_test = np.random.randn(150, 97, 12, 3)
-    Y_test = np.random.randint(0, 4, 150)
+    # X_test = np.random.randn(150, 97, 12, 3)
+    # Y_test = np.random.randint(0, 4, 150)
 
     # training
     checkpoint = ModelCheckpoint(args.ckps_dir, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=15)
-    history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, callbacks=[checkpoint])
+    history = model.architecture.fit(x = train, y = train_l, epochs=args.num_epochs, batch_size=args.batchsize, callbacks=[checkpoint])
 
     print(history)
     # evaluate
-    pred = model.architecture.evaluate(X_test, Y_test)
+    pred = model.architecture.evaluate(test, val_l)
 
 
