@@ -9,7 +9,7 @@ import random
 import os
 
 
-def get_samples_from_noise(input_path, output_path, input_name, output_name, nInput, nOutput, duration, seed):
+def get_samples_from_noise(input_path, output_path, nOutput, seed, input_name='noise', output_name='noise', nInput=6, duration=1):
     """From wav files of noise take random samples.
     :param input_path: directory path of input files.
     :param output_path: directory path of output samples.
@@ -186,7 +186,7 @@ def get_all_files(input_path):
         if len(dirs) > 0:
             directories.extend(dirs)
 
-    return files_list
+    return files_list 
 
 
 def split_dataset(dataset, n_samples_test, training_percentage):
@@ -235,10 +235,21 @@ def split_dataset(dataset, n_samples_test, training_percentage):
         labels_training.extend([i for j in range(n_samples_train)])
         labels_validation.extend([i for j in range(n_samples_val)])
         labels_test.extend([i for j in range(n_samples_test)])
+        
 
-    training, validation, test = np.array(training), np.array(validation), np.array(test)
-    labels_training, labels_validation, labels_test = np.array(labels_training), np.array(labels_validation),\
-                                                      np.array(labels_test)
+
+    # training, validation, test = np.array(training), np.array(validation), np.array(test)
+    training = np.stack( training, axis=0)
+    validation = np.stack(validation, axis=0)
+    test = np.stack(test, axis=0)
+
+
+    # labels_training, labels_validation, labels_test = np.array(labels_training), np.array(labels_validation),\
+    #                                                   np.array(labels_test)
+    
+    labels_training = np.stack(labels_training, axis=0)
+    labels_validation = np.stack(labels_validation, axis=0)
+    labels_test = np.stack(labels_test, axis=0)
 
     training, labels_training = shuffle_dataset(training, labels_training)
     validation, labels_validation = shuffle_dataset(validation, labels_validation)

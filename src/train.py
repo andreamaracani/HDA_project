@@ -3,6 +3,7 @@ import tensorflow as tf
 import util as u
 from model import ASRModel
 from tensorflow.keras.callbacks import ModelCheckpoint
+import matplotlib.pyplot as plt
 
 # parse input arguments
 parser = argparse.ArgumentParser(description='Train the Automatic Speech Recognition System')
@@ -12,7 +13,16 @@ parser = argparse.ArgumentParser(description='Train the Automatic Speech Recogni
 ##############################
 
 # Dataset arguments
-parser.add_argument('--datasetpath',    type=str,   default='data.npy',         help='Path of the dataset')
+parser.add_argument('--datasetpath',            type=str,       default='data/',            help='Path of the dataset')
+parser.add_argument('--class_test_samples',     type=int,       default=150,                help='Number of test samples per each class')
+parser.add_argument('--training_percentage',    type=float,     default=0.7,                help='Percentage of the dataset used for training')
+
+# noise samples creation
+parser.add_argument('--noise_source_path',      type=str,       default='files/',           help='Path of the noise source')
+parser.add_argument('--noise_output_path',      type=str,       default='data/26 silence/', help='Number of test samples per each class')
+parser.add_argument('--noise_samples',          type=int,       default=5000,               help='Number of noise samples to create')
+parser.add_argument('--seed',                   type=int,       default=30,                 help='Seed used for training set creation')
+
 
 # Network arguments
 parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',      help="Architecture of the model to use")
@@ -24,11 +34,11 @@ parser.add_argument('--hidden_layers',  type=int,   default=2,                  
 parser.add_argument('--dropout_prob',   type=float, default=0.3,                    help='Dropout probability')
 
 # Training argumenrs
-parser.add_argument('--batchsize',      type=int,   default=154,                help='Training batch size')
+parser.add_argument('--batchsize',      type=int,   default=64,                help='Training batch size')
 parser.add_argument('--num_epochs',     type=int,   default=1000,               help='Number of training epochs')
 
 # Save arguments
-parser.add_argument('--ckps_dir',     type=str,   default='models/',    help='Where to save models and params')
+parser.add_argument('--ckp_file',     type=str,   default='models/',    help='Where to save models and params')
 
 
 import numpy as np
@@ -38,7 +48,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     frames = 97
-    coeffs = 12
+    coeffs = 40
 
     pool=tuple(args.pool)
     stride=tuple(args.stride)
@@ -57,26 +67,43 @@ if __name__ == "__main__":
                                 metrics=["accuracy"])
 
     # loading the dataset
-    input_path = "data/"
-    test_samples_per_class = 50
-    training_percentage = 0.7
+    input_path_data = args.datasetpath
+    test_samples_per_class = args.class_test_samples
+    training_percentage = args.training_percentage
 
-    dataset = u.create_dataset(input_path)
+
+
+    u.get_samples_from_noise(args.noise_source_path, args.noise_output_path, nOutput=args.noise_samples, seed=args.seed)
+    dataset = u.create_dataset(input_path_data)
     train, val, test, train_l, val_l, test_l = u.split_dataset(dataset,  test_samples_per_class, training_percentage)
 
-    # creating random tensors for train and test
-    # X_train = np.random.randn(1000, 97, 12, 3)
-    # Y_train = np.random.randint(0, 4, 1000)
-
-    # X_test = np.random.randn(150, 97, 12, 3)
-    # Y_test = np.random.randint(0, 4, 150)
-
     # training
-    checkpoint = ModelCheckpoint(args.ckps_dir, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=15)
+    checkpoint = ModelCheckpoint(args.ckp_file, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=15)
     history = model.architecture.fit(x = train, y = train_l, epochs=args.num_epochs, batch_size=args.batchsize, callbacks=[checkpoint])
 
-    print(history)
-    # evaluate
-    pred = model.architecture.evaluate(test, val_l)
+    # evaluate with validation
+    preds = model.architecture.evaluate(val, val_l)
 
+    date = model.save()
+
+    print()
+    print ("Loss = " + str(preds[0]))
+    print ("Test Accuracy = " + str(preds[1]))
+
+
+    # Plot training & validation accuracy values
+    plt.plot(history.history['acc'])
+    plt.title('Model accuracy')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train'], loc='upper left')
+    plt.savefig('plots/accuracy.png', format='png')
+
+    # Plot training & validation loss values
+    plt.plot(history.history['loss'])
+    plt.title('Model loss')
+    plt.ylabel('Loss')
+    plt.xlabel('Epoch')
+    plt.legend(['Train'], loc='upper left')
+    plt.savefig('plots/loss.png', format='png')
 

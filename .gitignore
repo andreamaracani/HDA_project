@@ -15,3 +15,6 @@
 # ignore model files
 models/*
 
+# ignore plots files
+plots/*
+

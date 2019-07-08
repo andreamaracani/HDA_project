@@ -116,10 +116,11 @@ def cnn_trad_fpool3(input_shape, **params):
     # input shape: (batch_size, time, freq, channels)
     X_input = Input(input_shape)
 
-    X = ZeroPadding2D((0, 4))(X_input)
+
+    # X = ZeroPadding2D((0, 4))(X_input)
 
     # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
-    X = Conv2D(64, (64, 8), strides=(1,1), name='conv0')(X)
+    X = Conv2D(64, (64, 8), strides=(1,1), name='conv0')(X_input)
 
     # pooling in frequency within a region of t=1, f=3
     X = MaxPooling2D((1, 3), name='maxpool')(X)
@@ -271,6 +272,7 @@ if __name__ == "__main__":
 
     cnn_model.compile(optimizer="adam", loss="sparse_categorical_crossentropy", metrics=["accuracy"])
 
+    print(X_train.shape, Y_train.shape)
     # training
     cnn_model.fit(x = X_train, y = Y_train, epochs=7, batch_size=7)
 
