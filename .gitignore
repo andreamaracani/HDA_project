@@ -17,8 +17,6 @@ models/*
 !plots/checkpoints/
 !plots/checkpoints/.gitkeep
 
-
-
 # exclude everything in plots
 plots/*
 # exception to the rule
