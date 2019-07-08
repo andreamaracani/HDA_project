@@ -14,7 +14,7 @@
 
 # ignore model files
 models/*
-!plots/checkpoints
+!plots/checkpoints/
 !plots/checkpoints/.gitkeep
 
 
