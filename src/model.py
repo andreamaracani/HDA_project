@@ -44,7 +44,7 @@ class ASRModel(object):
             os.mkdir('models')
         
         date = datetime.datetime.now()
-        self.architecture.save('models/' + str(date))
+        self.architecture.save('models/' + date.strftime("%d-%m-%Y,%H-%M-%S"))
         return date
 
 
@@ -138,7 +138,7 @@ def cnn_trad_fpool3(input_shape, **params):
     X = Dense(128, activation='relu', name='relu')(X)
 
     # softmax: softmax layer
-    X = Dense(4, activation='softmax', name='softmax')(X)
+    X = Dense(27, activation='softmax', name='softmax')(X)
 
     model = Model(inputs = X_input, outputs = X, name='1-conv-model')
 
