@@ -94,6 +94,13 @@ def create_dataset(input_path, max_files_per_class=None, save=False, printInfo=T
         list_of_features = []
         for i in range(nFiles):
             fs, data = wavfile.read(files[i])
+
+            if len(data) < 16000:
+                data = np.pad(data, (0,16000-len(data)), mode="constant")
+            elif len(data) > 16000:
+                data = data[0:16000]
+
+
             features = f.get_features(data, fs, window_function=np.hamming, number_of_filters=40)
             list_of_features.append(features)
 
