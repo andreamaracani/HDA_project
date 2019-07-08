@@ -75,11 +75,21 @@ if __name__ == "__main__":
 
     u.get_samples_from_noise(args.noise_source_path, args.noise_output_path, nOutput=args.noise_samples, seed=args.seed)
     dataset = u.create_dataset(input_path_data)
+
+    print("#######################")
+    print("Splitting the dataset")
+    
     train, val, test, train_l, val_l, test_l = u.split_dataset(dataset,  test_samples_per_class, training_percentage)
+
+    print("#######################")
+    print("Starting training")
 
     # training
     checkpoint = ModelCheckpoint(args.ckp_file, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=15)
     history = model.architecture.fit(x = train, y = train_l, epochs=args.num_epochs, batch_size=args.batchsize, callbacks=[checkpoint])
+
+    print("#######################")
+    print("Evaluating the model")
 
     # evaluate with validation
     preds = model.architecture.evaluate(val, val_l)
