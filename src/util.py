@@ -127,6 +127,121 @@ def create_dataset(input_path, max_files_per_class=None, save=False, printInfo=T
     return np.array(dataset)
 
 
+def create_dataset_and_split(input_path, n_samples_test, training_percentage, sample_shape, max_classes = None, printInfo=True):
+
+    # get the path of every class directory of the dataset
+    classes = get_class_dirs(input_path)
+
+    #get number of classes
+    number_of_classes = len(classes)
+
+    if max_classes is not None:
+        number_of_classes = max_classes
+
+    composition = []
+
+    for c in range(number_of_classes):
+        files = get_all_files(classes[c])
+
+        # number of files in class c
+        nFiles = len(files)
+
+        test_size = n_samples_test
+        validation_size = int((1 - training_percentage) * (nFiles - test_size))
+        training_size = nFiles - test_size - validation_size
+
+        composition.append([training_size, validation_size, test_size])
+
+    composition = np.array(composition)
+
+    # number of all files in the dataset (just to estimate processing time)
+    number_of_all_files = get_number_of_files(input_path)
+
+    test_size = sum(composition[:, 2])
+    validation_size = sum(composition[:, 1])
+    training_size = sum(composition[:, 0])
+
+    # initialize empty dataset
+    training = np.empty((training_size,)+sample_shape)
+    validation = np.empty((validation_size,)+sample_shape)
+    test = np.empty((test_size,)+sample_shape)
+
+    training_l = np.empty(training_size, dtype=int)
+    validation_l = np.empty(validation_size, dtype=int)
+    test_l = np.empty(test_size, dtype=int)
+
+    training_permutation = np.random.permutation(training_size)
+    validation_permutation = np.random.permutation(validation_size)
+    test_permutation = np.random.permutation(test_size)
+
+    # number of files already processed (just to estimate processing time)
+    files_processed = 0
+
+    # current percentage of the process
+    percentage = 0
+
+    # tmp indices to iterate over the sets
+    training_index = 0
+    validation_index = 0
+    test_index = 0
+
+    if printInfo:
+        print("Starting creation of dataset...")
+        print("Dataset creation is " + str(int(percentage)) + "% completed")
+
+    # for every class
+    for c in range(number_of_classes):
+        files = get_all_files(classes[c])
+
+        nFiles = len(files)
+
+        p = np.random.permutation(nFiles)
+
+        nTrain = composition[c, 0]
+        nVal = composition[c, 1]
+        nTest = composition[c, 2]
+
+
+        for i in range(nFiles):
+            fs, data = wavfile.read(files[p[i]])
+
+            if len(data) < 16000:
+                data = np.pad(data, (0,16000-len(data)), mode="constant")
+            elif len(data) > 16000:
+                data = data[0:16000]
+
+
+            features = f.get_features(data, fs, window_function=np.hamming, number_of_filters=40)
+
+            if i < nTrain:
+                training[training_permutation[training_index], ] = features
+                training_l[training_permutation[training_index]] = c
+                training_index = training_index+1
+            elif i < nTrain + nVal:
+                validation[validation_permutation[validation_index], ] = features
+                validation_l[validation_permutation[validation_index]] = c
+                validation_index = validation_index+1
+            else:
+                test[test_permutation[test_index], ] = features
+                test_l[test_permutation[test_index]] = c
+                test_index = test_index+1
+
+            # increase counter of files processed
+            files_processed = files_processed + 1
+
+            if int(files_processed*100/number_of_all_files) > percentage and printInfo:
+                percentage = int(files_processed*100/number_of_all_files)
+                print("Dataset creation is " + str(int(percentage)) + "% completed")
+
+    # end for
+
+    if printInfo:
+        print(get_dataset_info(input_path))
+
+    return training, validation, test, training_l, validation_l, test_l
+
+
+
 def get_class_dirs(input_path):
     """From the dataset input path it finds the path of all class folders
     :param input_path: directory path of the dataset.
@@ -245,18 +360,18 @@ def split_dataset(dataset, n_samples_test, training_percentage):
         
 
 
-    # training, validation, test = np.array(training), np.array(validation), np.array(test)
-    training = np.stack( training, axis=0)
-    validation = np.stack(validation, axis=0)
-    test = np.stack(test, axis=0)
+    training, validation, test = np.array(training), np.array(validation), np.array(test)
+    # training = np.stack( training, axis=0)
+    # validation = np.stack(validation, axis=0)
+    # test = np.stack(test, axis=0)
 
 
-    # labels_training, labels_validation, labels_test = np.array(labels_training), np.array(labels_validation),\
-    #                                                   np.array(labels_test)
+    labels_training, labels_validation, labels_test = np.array(labels_training), np.array(labels_validation),\
+                                                      np.array(labels_test)
     
-    labels_training = np.stack(labels_training, axis=0)
-    labels_validation = np.stack(labels_validation, axis=0)
-    labels_test = np.stack(labels_test, axis=0)
+    # labels_training = np.stack(labels_training, axis=0)
+    # labels_validation = np.stack(labels_validation, axis=0)
+    # labels_test = np.stack(labels_test, axis=0)
 
     training, labels_training = shuffle_dataset(training, labels_training)
     validation, labels_validation = shuffle_dataset(validation, labels_validation)
