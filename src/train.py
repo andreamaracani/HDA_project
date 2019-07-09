@@ -14,7 +14,7 @@ parser = argparse.ArgumentParser(description='Train the Automatic Speech Recogni
 
 # Dataset arguments
 parser.add_argument('--datasetpath',            type=str,       default='data/',            help='Path of the dataset')
-parser.add_argument('--class_test_samples',     type=int,       default=15,                help='Number of test samples per each class')
+parser.add_argument('--class_test_samples',     type=int,       default=150,                help='Number of test samples per each class')
 parser.add_argument('--training_percentage',    type=float,     default=0.7,                help='Percentage of the dataset used for training')
 
 # noise samples creation
@@ -74,7 +74,7 @@ if __name__ == "__main__":
 
 
     u.get_samples_from_noise(args.noise_source_path, args.noise_output_path, nOutput=args.noise_samples, seed=args.seed)
-    dataset = u.create_dataset(input_path_data, max_files_per_class=50)
+    dataset = u.create_dataset(input_path_data, max_files_per_class=None)
 
     print("#######################")
     print("Splitting the dataset")
