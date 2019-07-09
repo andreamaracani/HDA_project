@@ -127,13 +127,7 @@ def create_dataset(input_path, max_files_per_class=None, save=False, printInfo=T
     return np.array(dataset)
 
 
-def create_dataset_and_split(input_path, n_samples_test, training_percentage, sample_shape, printInfo=True):
-    """From the dataset input path it build up a big numpy array with all data.
-    :param input_path: directory path of the dataset.
-    :param save. Save to disk a file for every class
-    :param printInfo: if it is true it prints infos about the dataset
-    :return: a numpy array containing the organized dataset
-    """
+def create_dataset_and_split(input_path, n_samples_test, training_percentage, sample_shape, max_classes = None, printInfo=True):
 
     # get the path of every class directory of the dataset
     classes = get_class_dirs(input_path)
@@ -141,9 +135,12 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
     #get number of classes
     number_of_classes = len(classes)
 
+    if max_classes is not None:
+        number_of_classes = max_classes
+
     composition = []
 
-    for c in range(len(classes)):
+    for c in range(number_of_classes):
         files = get_all_files(classes[c])
 
         # number of files in class c
@@ -153,25 +150,25 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
         validation_size = int((1 - training_percentage) * (nFiles - test_size))
         training_size = nFiles - test_size - validation_size
 
-        composition.append([training_size,validation_size,test_size])
+        composition.append([training_size, validation_size, test_size])
 
     composition = np.array(composition)
 
     # number of all files in the dataset (just to estimate processing time)
     number_of_all_files = get_number_of_files(input_path)
 
-    test_size = sum(composition[:,2])
-    validation_size = sum(composition[:,1])
-    training_size = sum(composition[:,0])
+    test_size = sum(composition[:, 2])
+    validation_size = sum(composition[:, 1])
+    training_size = sum(composition[:, 0])
 
     # initialize empty dataset
     training = np.empty((training_size,)+sample_shape)
     validation = np.empty((validation_size,)+sample_shape)
     test = np.empty((test_size,)+sample_shape)
 
-    training_l = np.empty(training_size)
-    validation_l = np.empty(validation_size)
-    test_l = np.empty(test_size)
+    training_l = np.empty(training_size, dtype=int)
+    validation_l = np.empty(validation_size, dtype=int)
+    test_l = np.empty(test_size, dtype=int)
 
     training_permutation = np.random.permutation(training_size)
     validation_permutation = np.random.permutation(validation_size)
@@ -183,7 +180,7 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
     # current percentage of the process
     percentage = 0
 
-
+    # tmp indices to iterate over the sets
     training_index = 0
     validation_index = 0
     test_index = 0
@@ -193,16 +190,17 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
         print("Dataset creation is " + str(int(percentage)) + "% completed")
 
     # for every class
-    for c in range(len(classes)):
+    for c in range(number_of_classes):
         files = get_all_files(classes[c])
 
         nFiles = len(files)
 
         p = np.random.permutation(nFiles)
 
-        nTrain = composition[c,0]
-        nTest = composition[c, 1]
-        nVal = composition[c, 2]
+        nTrain = composition[c, 0]
+        nVal = composition[c, 1]
+        nTest = composition[c, 2]
+
 
         for i in range(nFiles):
             fs, data = wavfile.read(files[p[i]])
@@ -216,10 +214,10 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
             features = f.get_features(data, fs, window_function=np.hamming, number_of_filters=40)
 
             if i < nTrain:
-                training[training_permutation[training_index] ,] = features
+                training[training_permutation[training_index], ] = features
                 training_l[training_permutation[training_index]] = c
                 training_index = training_index+1
-            elif i > nTrain + nVal:
+            elif i < nTrain + nVal:
                 validation[validation_permutation[validation_index], ] = features
                 validation_l[validation_permutation[validation_index]] = c
                 validation_index = validation_index+1
@@ -240,7 +238,7 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
     if printInfo:
         print(get_dataset_info(input_path))
 
-    return training,validation,test,training_l,validation_l,test_l
+    return training, validation, test, training_l, validation_l, test_l
 
 
 
