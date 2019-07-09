@@ -6,7 +6,7 @@ import random
 from scipy.fftpack import dct
 
 # use true for debug
-DEBUG = False
+DEBUG = True
 
 
 def pre_emphasis(signal, coef=0.95):
@@ -176,7 +176,7 @@ def get_features(signal,  sample_rate, hertz_from=300, hertz_to = None, number_o
         """
 
     # pre emphasis
-    signal = pre_emphasis(signal,pre_emphasis_coef)
+    signal = pre_emphasis(signal, pre_emphasis_coef)
 
     # devide signal into frames
     frames = frame_signal(signal, sample_rate, frame_duration, frame_step, window_function)
