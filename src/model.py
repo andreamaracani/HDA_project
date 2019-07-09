@@ -116,7 +116,6 @@ def cnn_trad_fpool3(input_shape, **params):
     # input shape: (batch_size, time, freq, channels)
     X_input = Input(input_shape)
 
-
     # X = ZeroPadding2D((0, 4))(X_input)
 
     # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
