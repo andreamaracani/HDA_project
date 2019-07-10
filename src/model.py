@@ -10,7 +10,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 
 class ASRModel(object):
 
-    def __init__(self, architecture, input_size, **params):
+    def __init__(self, architecture, input_size, out_size,  **params):
 
         """
         Initialize the model with the desired architecture
@@ -24,11 +24,11 @@ class ASRModel(object):
         """
         
         if (architecture == 'toy-model'):
-            self.architecture = toy_model(input_size, **params)
+            self.architecture = toy_model(input_size, out_size, **params)
         elif (architecture == 'cnn-trad-fpool3'):
-            self.architecture = cnn_trad_fpool3(input_size, **params)
+            self.architecture = cnn_trad_fpool3(input_size, out_size, **params)
         elif (architecture == 'module-network'):
-            self.architecture = module_model(input_size, **params)
+            self.architecture = module_model(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
         
@@ -60,7 +60,7 @@ def load(filepath):
     return model
 
 
-def toy_model(input_shape, **params):
+def toy_model(input_shape, out_size, **params):
 
     """
     Create a CNN model:
@@ -100,7 +100,7 @@ def toy_model(input_shape, **params):
     return model
 
 
-def cnn_trad_fpool3(input_shape, **params):
+def cnn_trad_fpool3(input_shape, out_size, **params):
 
     """
     Create the cnn-trad-fpool3 model as Convolutional Neural Networks for Small-fooprint Keyword Spotting
@@ -113,31 +113,54 @@ def cnn_trad_fpool3(input_shape, **params):
     Returns:
         an instance of the model created
     """
+
+    dropout_prob = params['dropout_prob']
+
     # input shape: (batch_size, time, freq, channels)
     X_input = Input(input_shape)
 
     # X = ZeroPadding2D((0, 4))(X_input)
 
+    # normalizing batch
+    X = BatchNormalization(axis=-1)(X_input)
+
     # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
-    X = Conv2D(64, (64, 8), strides=(1,1), name='conv0')(X_input)
+    X = Conv2D(64, (64, 8), strides=(1,1), name='conv0')(X)
+
+    # normalizing batch
+    X = BatchNormalization(axis=-1)(X)
+
+    # non-linearity
+    X = Activation('relu')(X)
 
     # pooling in frequency within a region of t=1, f=3
     X = MaxPooling2D((1, 3), name='maxpool')(X)
 
+    # Dropout
+    X= Dropout(dropout_prob)(X)
+
     # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
     X = Conv2D(64, (32, 4), strides=(1, 1), name='conv1')(X)
+
+    # normalizing batch
+    X = BatchNormalization(axis=-1)(X)
+
+    # non-linearity
+    X = Activation('relu')(X)
+
+    X = Dropout(dropout_prob)(X)
     
     # flatten the filters
     X = Flatten()(X)
 
     # linear: linear layer with 32 units
-    X = Dense(32, activation='linear', name='linear')(X)
+    X = Dense(32, activation='linear', kernel_initializer='random_normal', bias_initializer='zeros', name='linear')(X)
 
     # relu: fully connected layer with 128 relu activation units
-    X = Dense(128, activation='relu', name='relu')(X)
+    X = Dense(128, activation='relu', kernel_initializer='random_normal', bias_initializer='zeros', name='relu')(X)
 
     # softmax: softmax layer
-    X = Dense(27, activation='softmax', name='softmax')(X)
+    X = Dense(out_size, activation='softmax', kernel_initializer='random_normal', bias_initializer='zeros', name='softmax')(X)
 
     model = Model(inputs = X_input, outputs = X, name='1-conv-model')
 
@@ -191,7 +214,7 @@ def block(input_size, filters, kernel=(3, 3), strides=(1, 1), pooling_size=(1, 1
 
     return model
 
-def module_model(input_size, **params):
+def module_model(input_size, out_size,  **params):
 
     """
     Implements a convolutional network as composition of convolutional blocks
@@ -234,7 +257,7 @@ def module_model(input_size, **params):
     X = Dense(128, activation='relu', name='relu')(X)
 
     # softmax: softmax layer
-    X = Dense(4, activation='softmax', name='softmax')(X)
+    X = Dense(out_size, activation='softmax', name='softmax')(X)
 
     model = Model(inputs=X_input, outputs=X)
 

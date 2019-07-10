@@ -2,7 +2,8 @@ import argparse
 import tensorflow as tf
 import util as u
 from model import ASRModel
-from tensorflow.keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint
+from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 
 # parse input arguments
@@ -15,6 +16,7 @@ parser = argparse.ArgumentParser(description='Train the Automatic Speech Recogni
 # Dataset arguments
 parser.add_argument('--datasetpath',            type=str,       default='data/',            help='Path of the dataset')
 parser.add_argument('--class_test_samples',     type=int,       default=150,                help='Number of test samples per each class')
+parser.add_argument('--classes',                type=int,       default=None,                help='Number of classes used')
 parser.add_argument('--training_percentage',    type=float,     default=0.7,                help='Percentage of the dataset used for training')
 
 # noise samples creation
@@ -31,11 +33,11 @@ parser.add_argument('--kernel',         type=int,   default=[2, 2], nargs="+",  
 parser.add_argument('--stride',         type=int,   default=[1, 1], nargs="+",      help='Stride of the kernel')
 parser.add_argument('--pool',           type=int,   default=[1,1], nargs="+",       help='Pool size')
 parser.add_argument('--hidden_layers',  type=int,   default=2,                      help='Number of convolutional stacked layers')
-parser.add_argument('--dropout_prob',   type=float, default=0.3,                    help='Dropout probability')
+parser.add_argument('--dropout_prob',   type=float, default=0.25,                    help='Dropout probability')
 
 # Training argumenrs
 parser.add_argument('--batchsize',      type=int,   default=64,                help='Training batch size')
-parser.add_argument('--num_epochs',     type=int,   default=1000,               help='Number of training epochs')
+parser.add_argument('--num_epochs',     type=int,   default=100,               help='Number of training epochs')
 
 # Save arguments
 parser.add_argument('--ckp_file',     type=str,   default='models/',    help='Where to save models and params')
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     kernel=tuple(args.kernel)
 
     # initialize the network
-    model = ASRModel(architecture=args.architecture, input_size=(frames, coeffs, 3),  pooling_size=pool, \
+    model = ASRModel(architecture=args.architecture, input_size=(frames, coeffs, 3), out_size=args.classes, pooling_size=pool, \
         stride=stride, kernel=kernel, filters=args.filters, hidden_layers=args.hidden_layers, dropout_prob=args.dropout_prob)
 
     # model = ASRModel(architecture='cnn-trad-fpool3', input_size=(frames, coeffs, 3))
@@ -64,19 +66,24 @@ if __name__ == "__main__":
 
     # setting training
     model.architecture.compile(optimizer="adam", 
-                                loss="sparse_categorical_crossentropy", 
+                                loss="categorical_crossentropy", 
                                 metrics=["accuracy"])
 
     # loading the dataset
     input_path_data = args.datasetpath
     test_samples_per_class = args.class_test_samples
     training_percentage = args.training_percentage
-
+    num_classes = args.classes
 
 
     u.get_samples_from_noise(args.noise_source_path, args.noise_output_path, nOutput=args.noise_samples, seed=args.seed)
     X_train, X_val, X_test, Y_train, Y_val, Y_test = u.create_dataset_and_split(input_path_data, test_samples_per_class, \
-        training_percentage, (frames, coeffs, channels), max_classes=2)
+        training_percentage, (frames, coeffs, channels), max_classes=num_classes)
+
+    # passing to one-hot encoded
+    Y_train = keras.utils.to_categorical(Y_train, num_classes)
+    Y_val = keras.utils.to_categorical(Y_val, num_classes)
+    Y_test = keras.utils.to_categorical(Y_test, num_classes)
 
     # training
     checkpoint = ModelCheckpoint(args.ckp_file, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=15)
