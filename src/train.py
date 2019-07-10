@@ -3,8 +3,10 @@ import tensorflow as tf
 import util as u
 from model import ASRModel
 from keras.callbacks import ModelCheckpoint
-from keras.utils import to_categorical
+import keras.utils
 import matplotlib.pyplot as plt
+from pathlib import Path
+import os
 
 # parse input arguments
 parser = argparse.ArgumentParser(description='Train the Automatic Speech Recognition System')
@@ -40,7 +42,7 @@ parser.add_argument('--batchsize',      type=int,   default=64,                h
 parser.add_argument('--num_epochs',     type=int,   default=100,               help='Number of training epochs')
 
 # Save arguments
-parser.add_argument('--ckp_file',     type=str,   default='models/',    help='Where to save models and params')
+parser.add_argument('--ckp_folder',     type=str,   default='models/',    help='Where to save models and params')
 
 
 import numpy as np
@@ -86,7 +88,11 @@ if __name__ == "__main__":
     Y_test = keras.utils.to_categorical(Y_test, num_classes)
 
     # training
-    checkpoint = ModelCheckpoint(args.ckp_file, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=15)
+    out_dir = Path(args.ckp_folder)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    filepath = os.path.join(out_dir, 'ckp')
+
+    checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=2)
     history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, callbacks=[checkpoint])
 
     print("#######################")

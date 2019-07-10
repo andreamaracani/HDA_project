@@ -6,7 +6,7 @@ import random
 from scipy.fftpack import dct
 
 # use true for debug
-DEBUG = True
+DEBUG = False
 
 
 def pre_emphasis(signal, coef=0.95):

@@ -14,11 +14,13 @@
 
 # ignore model files
 models/*
-!plots/checkpoints/
-!plots/checkpoints/.gitkeep
+!models/.gitkeep
 
 # exclude everything in plots
 plots/*
-# exception to the rule
 !plots/.gitkeep 
+
+#exclude everything in checkpoints
+checkpoints/*
+!checkpoints/.gitkeep 
 
