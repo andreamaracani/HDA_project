@@ -9,7 +9,7 @@ import util as u
 
 
 batch_size = 64
-num_classes = 4 #4
+num_classes = 6 #4
 epochs = 20
 data_augmentation = False
 num_predictions = 20
@@ -20,7 +20,7 @@ input_path = "data/"
 # The data, split between train and test sets:
 # tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes=4)
 
-tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=50, training_percentage = 0.7,
+tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=80, training_percentage = 0.9,
                                                           sample_shape=(64, 64), number_of_filters=64, addDelta=False,
                                                           frame_duration=0.03, frame_step=0.015 , max_classes = 6,
                                                           printInfo=True)
