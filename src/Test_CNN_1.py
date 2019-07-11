@@ -22,8 +22,8 @@ input_path = "data/"
 
 tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=50, training_percentage = 0.7,
                                                           sample_shape=(64, 64), number_of_filters=64, addDelta=False,
-                                                          frame_duration=0.03, frame_step=0.015 , max_classes = None,
-                                                          printInfo=False)
+                                                          frame_duration=0.03, frame_step=0.015 , max_classes = 6,
+                                                          printInfo=True)
 
 print('x_train shape:', tr.shape)
 print(tr.shape[0], 'train samples')
