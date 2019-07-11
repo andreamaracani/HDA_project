@@ -1,13 +1,8 @@
-python src/train.py \
+python3 src/train.py \
 --datasetpath="data/" \
---classes=2 \
+--classes=3 \
 --architecture="improved-cnn-trad-fpool3" \
---filters 32 64 128 256 128 \
---kernel 3 3 \
---stride 1 1 \
---pool 2 2 \
---hidden_layers=5 \
 --dropout_prob=0.3 \
 --batchsize=64 \
 --ckp_folder="checkpoints/" \
---num_epochs=4 \
+--num_epochs=1 \
