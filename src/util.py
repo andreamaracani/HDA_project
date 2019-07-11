@@ -127,7 +127,7 @@ def create_dataset(input_path, max_files_per_class=None, save=False, printInfo=T
     return np.array(dataset)
 
 
-def create_dataset_and_split(input_path, n_samples_test, training_percentage, sample_shape, max_classes = None, printInfo=True):
+def create_dataset_and_split(input_path, n_samples_test, training_percentage, sample_shape, number_of_filters = 40, frame_duration=0.025, frame_step=0.010, useDCT = False , max_classes = None, printInfo=True):
 
     # get the path of every class directory of the dataset
     classes = get_class_dirs(input_path)
@@ -201,17 +201,15 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
         nVal = composition[c, 1]
         nTest = composition[c, 2]
 
-
         for i in range(nFiles):
             fs, data = wavfile.read(files[p[i]])
 
             if len(data) < 16000:
-                data = np.pad(data, (0,16000-len(data)), mode="constant")
+                data = np.pad(data, (0, 16000-len(data)), mode="constant")
             elif len(data) > 16000:
                 data = data[0:16000]
 
-
-            features = f.get_features(data, fs, window_function=np.hamming, number_of_filters=40)
+            features = f.get_features(data, fs, window_function=np.hamming, number_of_filters=number_of_filters, useDCT=useDCT, frame_duration=frame_duration, frame_step=frame_step)
 
             if i < nTrain:
                 training[training_permutation[training_index], ] = features
