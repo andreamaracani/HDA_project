@@ -2,7 +2,7 @@ from __future__ import print_function
 import keras
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
-from keras.layers import Dense, Dropout, Activation, Flatten
+from keras.layers import Dense, Dropout, Activation, Flatten, BatchNormalization
 from keras.layers import Conv2D, MaxPooling2D
 import os
 import util as u
@@ -30,26 +30,72 @@ te_l = keras.utils.to_categorical(te_l, num_classes)
 
 model = Sequential()
 
-######Test accuracy: 0.98#######################################################
-model.add(Conv2D(32, (5, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Conv2D(32, (3, 3), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
-model.add(Conv2D(32, (5, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Conv2D(32, (3, 3), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(1, 5)))
+model.add(Conv2D(32, (3, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Activation('relu'))
+model.add(Conv2D(32, (3, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Activation('relu'))
+model.add(Conv2D(32, (3, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Activation('relu'))
+model.add(Conv2D(32, (3, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(1, 3)))
 model.add(Dropout(0.25))
 
-model.add(Conv2D(64, (3, 3), padding='same'))
-model.add(Activation('relu'))
 model.add(Conv2D(64, (3, 3), padding='same'))
 model.add(Activation('relu'))
 model.add(Dropout(0.25))
 
 model.add(Flatten())
-model.add(Dense(256))
+model.add(Dense(32))
+model.add(Activation('relu'))
+model.add(Dense(64))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
+
+
+#####################
+# model.add(Conv2D(32, (5, 3), padding='same', input_shape=tr.shape[1:]))
+# model.add(Activation('relu'))
+# model.add(MaxPooling2D(pool_size=(1, 3)))
+# model.add(Dropout(0.25))
+#
+# model.add(Conv2D(64, (3, 3), padding='same'))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.25))
+#
+# model.add(Flatten())
+# model.add(Dense(128))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.5))
+# model.add(Dense(num_classes))
+# model.add(Activation('softmax'))
+
+######Test accuracy: 0.955 (4 classes, 20 epochs) #######################################################
+# model.add(Conv2D(32, (5, 3), padding='same', input_shape=tr.shape[1:]))
+# model.add(Activation('relu'))
+# model.add(Conv2D(32, (5, 3), padding='same', input_shape=tr.shape[1:]))
+# model.add(Activation('relu'))
+# model.add(MaxPooling2D(pool_size=(1, 5)))
+# model.add(Dropout(0.25))
+#
+# model.add(Conv2D(64, (3, 3), padding='same'))
+# model.add(Activation('relu'))
+# model.add(Conv2D(64, (3, 3), padding='same'))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.25))
+#
+# model.add(Flatten())
+# model.add(Dense(256))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.5))
+# model.add(Dense(num_classes))
+# model.add(Activation('softmax'))
 
 ######Test accuracy: 0.98 (with all classes test 0.8577777777777778, train 91%) #######################################################
 # model.add(Conv2D(32, (7, 3), padding='same', input_shape=tr.shape[1:]))
