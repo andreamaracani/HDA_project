@@ -123,7 +123,7 @@ if __name__ == "__main__":
 
     # u.get_samples_from_noise(args.noise_source_path, args.noise_output_path, nOutput=args.noise_samples, seed=args.seed)
     X_train, X_val, X_test, Y_train, Y_val, Y_test = u.create_dataset_and_split(input_path_data, test_samples_per_class, \
-        training_percentage, (frames, coeffs, channels), max_classes=num_classes)
+        training_percentage, (frames, coeffs, channels), max_classes=num_classes, addDelta=True)
 
     # passing to one-hot encoded
     Y_train = to_categorical(Y_train, num_classes)
