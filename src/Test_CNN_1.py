@@ -34,7 +34,7 @@ tr_l = keras.utils.to_categorical(tr_l, num_classes)
 te_l = keras.utils.to_categorical(te_l, num_classes)
 
 model = Sequential()
-model.add(Conv2D(64, (3, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Conv2D(64, (3, 3), padding='same', input_shape=tr.shape))
 model.add(Activation('relu'))
 model.add(Conv2D(64, (3, 3), padding='same'))
 model.add(Activation('relu'))
