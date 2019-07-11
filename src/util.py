@@ -252,7 +252,7 @@ def get_class_dirs(input_path):
     for i in range(len(dirs)):
         dirs[i] = input_path + dirs[i] + "/"
 
-    return dirs
+    return sorted(dirs)
 
 
 def get_number_of_files(input_path):

@@ -2,11 +2,11 @@ import numpy as np
 import tensorflow as tf
 import os
 import datetime
-from tensorflow.keras import layers
-from tensorflow.keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout
-from tensorflow.keras.models import Model
-from tensorflow.keras.models import save_model, load_model
-from tensorflow.keras.callbacks import ModelCheckpoint
+from keras import layers
+from keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout
+from keras.models import Model, Sequential
+from keras.models import save_model, load_model
+from keras.callbacks import ModelCheckpoint
 
 class ASRModel(object):
 
@@ -29,9 +29,14 @@ class ASRModel(object):
             self.architecture = cnn_trad_fpool3(input_size, out_size, **params)
         elif (architecture == 'module-network'):
             self.architecture = module_model(input_size, out_size, **params)
+        elif (architecture == 'improved-cnn-trad-fpool3'):
+            self.architecture = improved_cnn_trad_fpool3(input_size, out_size, **params)
+        elif (architecture == 'sequential-model'):
+            self.architecture = sequential_model(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
         
+        sequential_model
     def save(self):
 
         """
@@ -167,6 +172,117 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
     # return the model instance
     return model
 
+def improved_cnn_trad_fpool3(input_shape, out_size, **params):
+
+    """
+    Create an improved version of cnn-trad-fpool3 model from Convolutional Neural Networks for Small-fooprint Keyword Spotting
+    [Sainath15]:
+    
+    Args:
+        input_shape: tuple of ints indicating the shape of the input
+    
+    Returns:
+        an instance of the model created
+    """
+
+    dropout_prob = params['dropout_prob']
+
+    # input shape: (batch_size, time, freq, channels)
+    X_input = Input(input_shape)
+
+    # X = ZeroPadding2D((0, 4))(X_input)
+
+    # normalizing batch
+    X = BatchNormalization(axis=-1)(X_input)
+
+    # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
+    X = Conv2D(64, (7, 3), strides=(1, 1), name='conv0')(X)
+    X=  Conv2D(64, (7, 3), strides=(1, 1), name='conv0b')(X)
+
+    # normalizing batch
+    X = BatchNormalization(axis=-1)(X)
+
+    # non-linearity
+    X = Activation('relu')(X)
+
+    # pooling in frequency within a region of t=1, f=3
+    X = MaxPooling2D((1, 3), name='maxpool')(X)
+
+    # Dropout
+    X= Dropout(dropout_prob)(X)
+
+    # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
+    X = Conv2D(32, (5, 3), strides=(1, 1), name='conv1')(X)
+    X = Conv2D(32, (5, 3), strides=(1, 1), name='conv1b')(X)
+
+    # normalizing batch
+    X = BatchNormalization(axis=-1)(X)
+
+    # non-linearity
+    X = Activation('relu')(X)
+
+    X = Dropout(dropout_prob)(X)
+
+    # conv2:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
+    X = Conv2D(16, (5, 3), strides=(1, 1), name='conv2')(X)
+    X = Conv2D(16, (5, 3), strides=(1, 1), name='conv2b')(X)
+
+    # normalizing batch
+    X = BatchNormalization(axis=-1)(X)
+
+    # non-linearity
+    X = Activation('relu')(X)
+
+    X = Dropout(dropout_prob)(X)
+    
+    # flatten the filters
+    X = Flatten()(X)
+
+    # linear: linear layer with 32 units
+    X = Dense(32, activation='linear', kernel_initializer='random_normal', bias_initializer='zeros', name='linear')(X)
+
+    # relu: fully connected layer with 128 relu activation units
+    X = Dense(128, activation='relu', kernel_initializer='random_normal', bias_initializer='zeros', name='relu')(X)
+
+    # softmax: softmax layer
+    X = Dense(out_size, activation='softmax', kernel_initializer='random_normal', bias_initializer='zeros', name='softmax')(X)
+
+    model = Model(inputs = X_input, outputs = X, name='1-conv-model')
+
+    # return the model instance
+    return model
+
+
+def sequential_model(input_shape, out_size, **params):
+
+    dropout_prob = params['dropout_prob']
+
+    model = Sequential()
+    model.add(BatchNormalization(axis=-1, input_shape=input_shape))
+    model.add(Conv2D(64, (7, 3), strides=(1, 1), name='conv0'))
+    model.add(Conv2D(64, (7, 3), strides=(1, 1), name='conv0b'))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Activation('relu'))
+    model.add(MaxPooling2D((1, 3), name='maxpool'))
+    model.add(Dropout(dropout_prob))
+    model.add(Conv2D(32, (5, 3), strides=(1, 1), name='conv1'))
+    model.add(Conv2D(32, (5, 3), strides=(1, 1), name='conv1b'))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Activation('relu'))
+    model.add(Dropout(dropout_prob))
+    model.add(Conv2D(16, (5, 3), strides=(1, 1), name='conv2'))
+    model.add(Conv2D(16, (5, 3), strides=(1, 1), name='conv2b'))
+    model.add(BatchNormalization(axis=-1))
+    model.add(Activation('relu'))
+    model.add(Dropout(dropout_prob))
+    model.add(Flatten())
+    model.add(Dense(32, activation='linear', kernel_initializer='random_normal', bias_initializer='zeros', name='linear'))
+    model.add(Dense(128, activation='relu', kernel_initializer='random_normal', bias_initializer='zeros', name='relu'))
+    model.add(Dense(out_size, activation='softmax', kernel_initializer='random_normal', bias_initializer='zeros', name='softmax'))
+
+    return model
+
+
 def block(input_size, filters, kernel=(3, 3), strides=(1, 1), pooling_size=(1, 1), dropout_prob=0.3):
     """
     Implements a convolutional block composed as
@@ -213,6 +329,7 @@ def block(input_size, filters, kernel=(3, 3), strides=(1, 1), pooling_size=(1, 1
     model = Model(inputs=X_input, outputs=X)
 
     return model
+
 
 def module_model(input_size, out_size,  **params):
 
@@ -267,7 +384,7 @@ def module_model(input_size, out_size,  **params):
 if __name__ == "__main__":
 
     # input shapes
-    input_size = 12
+    input_size = 40
     frames = 97
     m = 1000
     m_test= 150
@@ -287,7 +404,7 @@ if __name__ == "__main__":
     hidden_layers = 5
     dropout_prob=0.3
     
-    model = ASRModel(architecture='cnn-trad-fpool3', input_size=(frames, input_size, 3), pooling_size=pooling_size, \
+    model = ASRModel(architecture='cnn-trad-fpool3', input_size=(frames, input_size, 3), out_size=5, pooling_size=pooling_size, \
         stride=stride, kernel=kernel, filters=filters, hidden_layers=hidden_layers, dropout_prob=dropout_prob)
 
     cnn_model = model.architecture
@@ -296,7 +413,7 @@ if __name__ == "__main__":
 
     print(X_train.shape, Y_train.shape)
     # training
-    cnn_model.fit(x = X_train, y = Y_train, epochs=7, batch_size=7)
+    cnn_model.fit(x = X_train, y = Y_train, epochs=1, batch_size=7)
 
     # evaluate the model with test set
     preds = cnn_model.evaluate(X_test, Y_test)
@@ -310,3 +427,4 @@ if __name__ == "__main__":
     
     # print the summary of the layers(parameters)
     cnn_model.summary()
+    print(cnn_model.to_json())

@@ -3,10 +3,11 @@ import tensorflow as tf
 import util as u
 from model import ASRModel
 from keras.callbacks import ModelCheckpoint
-import keras.utils
+from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 from pathlib import Path
 import os
+import json
 
 # parse input arguments
 parser = argparse.ArgumentParser(description='Train the Automatic Speech Recognition System')
@@ -17,7 +18,7 @@ parser = argparse.ArgumentParser(description='Train the Automatic Speech Recogni
 
 # Dataset arguments
 parser.add_argument('--datasetpath',            type=str,       default='data/',            help='Path of the dataset')
-parser.add_argument('--class_test_samples',     type=int,       default=150,                help='Number of test samples per each class')
+parser.add_argument('--class_test_samples',     type=int,       default=50,                help='Number of test samples per each class')
 parser.add_argument('--classes',                type=int,       default=None,                help='Number of classes used')
 parser.add_argument('--training_percentage',    type=float,     default=0.7,                help='Percentage of the dataset used for training')
 
@@ -43,6 +44,7 @@ parser.add_argument('--num_epochs',     type=int,   default=100,               h
 
 # Save arguments
 parser.add_argument('--ckp_folder',     type=str,   default='models/',    help='Where to save models and params')
+parser.add_argument('--training_logs_folder',type=str,   default='training_logs/',    help='Where to save training logs and params')
 
 
 import numpy as np
@@ -63,14 +65,11 @@ if __name__ == "__main__":
     model = ASRModel(architecture=args.architecture, input_size=(frames, coeffs, 3), out_size=args.classes, pooling_size=pool, \
         stride=stride, kernel=kernel, filters=args.filters, hidden_layers=args.hidden_layers, dropout_prob=args.dropout_prob)
 
-    # model = ASRModel(architecture='cnn-trad-fpool3', input_size=(frames, coeffs, 3))
-
-
     # setting training
     model.architecture.compile(optimizer="adam", 
                                 loss="categorical_crossentropy", 
                                 metrics=["accuracy"])
-
+    
     # loading the dataset
     input_path_data = args.datasetpath
     test_samples_per_class = args.class_test_samples
@@ -83,9 +82,9 @@ if __name__ == "__main__":
         training_percentage, (frames, coeffs, channels), max_classes=num_classes)
 
     # passing to one-hot encoded
-    Y_train = keras.utils.to_categorical(Y_train, num_classes)
-    Y_val = keras.utils.to_categorical(Y_val, num_classes)
-    Y_test = keras.utils.to_categorical(Y_test, num_classes)
+    Y_train = to_categorical(Y_train, num_classes)
+    Y_val = to_categorical(Y_val, num_classes)
+    Y_test = to_categorical(Y_test, num_classes)
 
     # training
     out_dir = Path(args.ckp_folder)
@@ -93,8 +92,10 @@ if __name__ == "__main__":
     filepath = os.path.join(out_dir, 'ckp')
 
     checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=2)
-    history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, callbacks=[checkpoint])
+    history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, validation_data=(X_val, Y_val), callbacks=[checkpoint])
 
+    model.architecture.summary()
+    
     print("#######################")
     print("Evaluating the model")
 
@@ -123,4 +124,15 @@ if __name__ == "__main__":
     plt.xlabel('Epoch')
     plt.legend(['Train'], loc='upper left')
     plt.savefig('plots/loss.png', format='png')
+
+    # training
+    training_logs_folder = Path(args.training_logs_folder)
+    training_logs_folder.mkdir(parents=True, exist_ok=True)
+    filepath = os.path.join(training_logs_folder, 'training'+str(date)+'.json')
+
+    # building data:
+    training_data = {'params':vars(args),'model':model.architecture.to_json(), 'loss':history.history['loss'], 'acc':history.history['acc']}
+
+    with open(filepath, 'w') as f:
+        json.dump(training_data, f, indent=4)
 
