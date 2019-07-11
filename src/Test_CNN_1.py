@@ -6,10 +6,10 @@ from keras.layers import Dense, Dropout, Activation, Flatten, BatchNormalization
 from keras.layers import Conv2D, MaxPooling2D
 import os
 import util as u
-
+import numpy as np
 
 batch_size = 64
-num_classes = 4 #4
+num_classes = 2 #4
 epochs = 20
 data_augmentation = False
 num_predictions = 20
@@ -18,7 +18,14 @@ model_name = 'Test Model_1.h5'
 input_path = "data/"
 
 # The data, split between train and test sets:
-tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes=4)
+# tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes=4)
+
+tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=80, training_percentage = 0.9,
+                                                          sample_shape=(64, 64), number_of_filters=64, addDelta=False,
+                                                          frame_duration=0.03, frame_step=0.015 , max_classes = 2,
+                                                          printInfo=True)
+tr = np.expand_dims(tr, axis=-1)
+te = np.expand_dims(te, axis=-1)
 
 print('x_train shape:', tr.shape)
 print(tr.shape[0], 'train samples')
@@ -28,36 +35,54 @@ print(te.shape[0], 'test samples')
 tr_l = keras.utils.to_categorical(tr_l, num_classes)
 te_l = keras.utils.to_categorical(te_l, num_classes)
 
-
 model = Sequential()
-model.add(BatchNormalization(axis=-1, input_shape=tr.shape[1:]))
-model.add(Conv2D(64, (7, 3), strides=(1, 1), name='conv0'))
+model.add(Conv2D(64, (3, 3), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
-model.add(Conv2D(64, (7, 3), strides=(1, 1), name='conv0b'))
-model.add(BatchNormalization(axis=-1))
+model.add(Conv2D(64, (3, 3), padding='same'))
 model.add(Activation('relu'))
-model.add(MaxPooling2D((1, 3), name='maxpool'))
-model.add(Dropout(0.25))
-
-model.add(Conv2D(32, (3, 3), strides=(1, 1), name='conv1'))
-model.add(Activation('relu'))
-model.add(Conv2D(32, (3, 3), strides=(1, 1), name='conv1b'))
-model.add(BatchNormalization(axis=-1))
+model.add(Conv2D(64, (3, 3), padding='same'))
 model.add(Activation('relu'))
 model.add(Dropout(0.25))
 
-model.add(Conv2D(16, (3, 3), strides=(1, 1), name='conv2'))
-model.add(Activation('relu'))
-model.add(Conv2D(16, (3, 3), strides=(1, 1), name='conv2b'))
-model.add(BatchNormalization(axis=-1))
-model.add(Activation('relu'))
-model.add(Dropout(0.25))
 model.add(Flatten())
-model.add(Dense(32, activation='linear', kernel_initializer='random_normal', bias_initializer='zeros', name='linear'))
-model.add(Dense(128, activation='relu', kernel_initializer='random_normal', bias_initializer='zeros', name='relu'))
-model.add(Dense(num_classes, activation='softmax', kernel_initializer='random_normal', bias_initializer='zeros', name='softmax'))
+model.add(Dense(32))
+model.add(Activation('linear'))
+model.add(Dense(128))
+model.add(Activation('relu'))
+model.add(Dropout(0.5))
+model.add(Dense(num_classes))
+model.add(Activation('softmax'))
 
-#  LOCAL
+#17 epochs 95%
+# model = Sequential()
+# model.add(BatchNormalization(axis=-1, input_shape=tr.shape[1:]))
+# model.add(Conv2D(64, (7, 3), strides=(1, 1), name='conv0'))
+# model.add(Activation('relu'))
+# model.add(Conv2D(64, (7, 3), strides=(1, 1), name='conv0b'))
+# model.add(BatchNormalization(axis=-1))
+# model.add(Activation('relu'))
+# model.add(MaxPooling2D((1, 3), name='maxpool'))
+# model.add(Dropout(0.25))
+#
+# model.add(Conv2D(32, (3, 3), strides=(1, 1), name='conv1'))
+# model.add(Activation('relu'))
+# model.add(Conv2D(32, (3, 3), strides=(1, 1), name='conv1b'))
+# model.add(BatchNormalization(axis=-1))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.25))
+#
+# model.add(Conv2D(16, (3, 3), strides=(1, 1), name='conv2'))
+# model.add(Activation('relu'))
+# model.add(Conv2D(16, (3, 3), strides=(1, 1), name='conv2b'))
+# model.add(BatchNormalization(axis=-1))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.25))
+# model.add(Flatten())
+# model.add(Dense(32, activation='linear', kernel_initializer='random_normal', bias_initializer='zeros', name='linear'))
+# model.add(Dense(128, activation='relu', kernel_initializer='random_normal', bias_initializer='zeros', name='relu'))
+# model.add(Dense(num_classes, activation='softmax', kernel_initializer='random_normal', bias_initializer='zeros', name='softmax'))
+
+#  14 epochs 93%
 # model = Sequential()
 # model.add(BatchNormalization(axis=-1, input_shape=tr.shape[1:]))
 # model.add(Conv2D(64, (7, 3), strides=(1, 1), name='conv0'))
@@ -82,7 +107,7 @@ model.add(Dense(num_classes, activation='softmax', kernel_initializer='random_no
 # model.add(Dense(128, activation='relu', kernel_initializer='random_normal', bias_initializer='zeros', name='relu'))
 # model.add(Dense(num_classes, activation='softmax', kernel_initializer='random_normal', bias_initializer='zeros', name='softmax'))
 
-#tensorflow 2
+#tensorflow 91.5%
 # model.add(Conv2D(64, (5, 3), padding='same', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(Conv2D(64, (5, 3), padding='same', input_shape=tr.shape[1:]))

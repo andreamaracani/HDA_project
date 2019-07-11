@@ -158,7 +158,7 @@ def get_filter_banks(hertz_from, hertz_to, number_of_filters, fft_length, sample
 
 
 def get_features(signal,  sample_rate, hertz_from=300, hertz_to = None, number_of_filters=26, pre_emphasis_coef=0.95, frame_duration=0.025, frame_step=0.010,
-             window_function=lambda z: np.ones((z,)), power_of_2 = True, useDCT = False):
+             window_function=lambda z: np.ones((z,)), power_of_2 = True, useDCT = False, addDelta = True):
     """Get MFCC coefficients.
         :param signal: the array to be framed.
         :param pre_emphasis_coef: coefficient for the pre emphasis
@@ -211,15 +211,18 @@ def get_features(signal,  sample_rate, hertz_from=300, hertz_to = None, number_o
     if useDCT:
         filterbank_energies = dct(filterbank_energies, type=2, axis=1, norm='ortho') # [:, 1:13]
 
-    # delta (velocity coefficients)
-    delta = get_delta(filterbank_energies)
 
-    # delta-delta (acceleration coefficients)
-    delta_delta = get_delta(delta)
+    if addDelta:
+        # delta (velocity coefficients)
+        delta = get_delta(filterbank_energies)
 
-    features = np.array([filterbank_energies,delta,delta_delta])
+        # delta-delta (acceleration coefficients)
+        delta_delta = get_delta(delta)
 
-    return np.transpose(features, (1, 2, 0))
+        features = np.array([filterbank_energies, delta, delta_delta])
+        return np.transpose(features, (1, 2, 0))
+
+    return np.array([filterbank_energies])
 
 
 # see http://practicalcryptography.com/miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-mfccs/
