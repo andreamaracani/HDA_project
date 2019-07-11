@@ -1,5 +1,6 @@
 from __future__ import print_function
 import keras
+from keras.datasets import cifar10
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import Sequential
 from keras.layers import Dense, Dropout, Activation, Flatten
@@ -9,16 +10,16 @@ import util as u
 
 
 batch_size = 64
-num_classes = 4 #4
-epochs = 20
+num_classes = 27
+epochs = 10
 data_augmentation = False
 num_predictions = 20
-save_dir = os.path.join(os.getcwd(), 'models')
-model_name = 'Test Model_1.h5'
+save_dir = os.path.join(os.getcwd(), 'saved_models')
+model_name = 'Test Model.h5'
 input_path = "data/"
 
 # The data, split between train and test sets:
-tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes=4)
+tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3))
 
 print('x_train shape:', tr.shape)
 print(tr.shape[0], 'train samples')
@@ -30,94 +31,26 @@ te_l = keras.utils.to_categorical(te_l, num_classes)
 
 model = Sequential()
 
-######Test accuracy: 0.98#######################################################
-model.add(Conv2D(32, (5, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Conv2D(32, (3, 3), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
-model.add(Conv2D(32, (5, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Conv2D(32, (3, 3)))
 model.add(Activation('relu'))
-model.add(MaxPooling2D(pool_size=(1, 5)))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
 
 model.add(Conv2D(64, (3, 3), padding='same'))
 model.add(Activation('relu'))
-model.add(Conv2D(64, (3, 3), padding='same'))
+model.add(Conv2D(64, (3, 3)))
 model.add(Activation('relu'))
+model.add(MaxPooling2D(pool_size=(2, 2)))
 model.add(Dropout(0.25))
 
 model.add(Flatten())
-model.add(Dense(256))
+model.add(Dense(512))
 model.add(Activation('relu'))
 model.add(Dropout(0.5))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
-
-######Test accuracy: 0.98 (with all classes test 0.8577777777777778, train 91%) #######################################################
-# model.add(Conv2D(32, (7, 3), padding='same', input_shape=tr.shape[1:]))
-# model.add(Activation('relu'))
-# model.add(Conv2D(32, (7, 3), padding='same', input_shape=tr.shape[1:]))
-# model.add(Activation('relu'))
-# model.add(MaxPooling2D(pool_size=(1, 3)))
-# model.add(Dropout(0.25))
-#
-# model.add(Conv2D(64, (3, 3), padding='same'))
-# model.add(Activation('relu'))
-# model.add(Conv2D(64, (3, 3), padding='same'))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.25))
-#
-# model.add(Flatten())
-# model.add(Dense(128))
-# model.add(Activation('relu'))
-# model.add(Dense(128))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.5))
-# model.add(Dense(num_classes))
-# model.add(Activation('softmax'))
-
-
-########################Test accuracy 0.95 20 epochs###############################################
-#
-# model.add(Conv2D(32, (7, 3), padding='same', input_shape=tr.shape[1:]))
-# model.add(Activation('relu'))
-# model.add(Conv2D(32, (7, 3), padding='same', input_shape=tr.shape[1:]))
-# model.add(Activation('relu'))
-# model.add(MaxPooling2D(pool_size=(1, 3)))
-# model.add(Dropout(0.25))
-#
-# model.add(Conv2D(64, (3, 3), padding='same'))
-# model.add(Activation('relu'))
-# model.add(Conv2D(64, (3, 3), padding='same'))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.25))
-#
-# model.add(Flatten())
-# model.add(Dense(32))
-# model.add(Activation('linear'))
-# model.add(Dense(128))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.5))
-# model.add(Dense(num_classes))
-# model.add(Activation('softmax'))
-
-###################### Test accuracy: 0.925 20 epochs##########################################
-#
-# model.add(Conv2D(64, (7, 3), padding='same', input_shape=tr.shape[1:]))
-# model.add(Activation('relu'))
-# model.add(MaxPooling2D(pool_size=(1, 3)))
-# model.add(Dropout(0.25))
-#
-# model.add(Conv2D(64, (3, 3), padding='same'))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.25))
-#
-# model.add(Flatten())
-# model.add(Dense(32))
-# model.add(Activation('linear'))
-# model.add(Dense(128))
-# model.add(Activation('relu'))
-# model.add(Dropout(0.5))
-# model.add(Dense(num_classes))
-# model.add(Activation('softmax'))
 
 # initiate RMSprop optimizer
 opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
@@ -133,8 +66,6 @@ tr /= 255
 te /= 255
 
 if not data_augmentation:
-
-    model.summary()
     print('Not using data augmentation.')
     model.fit(tr, tr_l,
               batch_size=batch_size,
