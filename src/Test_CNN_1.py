@@ -59,7 +59,7 @@ model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 
 
-#####################
+##################### 0.92 4 classes 20 epochs ##########
 # model.add(Conv2D(32, (5, 3), padding='same', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(MaxPooling2D(pool_size=(1, 3)))
