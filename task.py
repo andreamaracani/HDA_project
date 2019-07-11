@@ -92,8 +92,9 @@ if __name__ == "__main__":
     filepath = os.path.join(out_dir, 'ckp')
 
     checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=2)
-    remoteMonitor = RemoteMonitor(root='http://localhost:9000', path='/publish/epoch/end/', field='data', headers=None, send_as_json=False)
-    history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, validation_data=(X_val, Y_val), callbacks=[checkpoint, remoteMonitor])
+    # remoteMonitor = RemoteMonitor(root='http://localhost:9000', path='/publish/epoch/end/', field='data', headers=None, send_as_json=False)
+    callbacks = [checkpoint]
+    history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, validation_data=(X_val, Y_val), callbacks=callbacks)
 
     model.architecture.summary()
     
