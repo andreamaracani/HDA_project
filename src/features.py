@@ -222,7 +222,7 @@ def get_features(signal,  sample_rate, hertz_from=300, hertz_to = None, number_o
         features = np.array([filterbank_energies, delta, delta_delta])
         return np.transpose(features, (1, 2, 0))
 
-    return filterbank_energies
+    return np.array([filterbank_energies])
 
 
 # see http://practicalcryptography.com/miscellaneous/machine-learning/guide-mel-frequency-cepstral-coefficients-mfccs/
