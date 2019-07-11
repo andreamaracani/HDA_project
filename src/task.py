@@ -9,49 +9,52 @@ from pathlib import Path
 import os
 import json
 
-# parse input arguments
-parser = argparse.ArgumentParser(description='Train the Automatic Speech Recognition System')
+def get_args():
+    
+    # parse input arguments
+    parser = argparse.ArgumentParser(description='Train the Automatic Speech Recognition System')
 
-##############################
-## PARAMETERS
-##############################
+    ##############################
+    ## PARAMETERS
+    ##############################
 
-# Dataset arguments
-parser.add_argument('--datasetpath',            type=str,       default='data/',            help='Path of the dataset')
-parser.add_argument('--class_test_samples',     type=int,       default=50,                help='Number of test samples per each class')
-parser.add_argument('--classes',                type=int,       default=None,                help='Number of classes used')
-parser.add_argument('--training_percentage',    type=float,     default=0.7,                help='Percentage of the dataset used for training')
+    # Dataset arguments
+    parser.add_argument('--datasetpath',            type=str,       default='data/',            help='Path of the dataset')
+    parser.add_argument('--class_test_samples',     type=int,       default=50,                help='Number of test samples per each class')
+    parser.add_argument('--classes',                type=int,       default=None,                help='Number of classes used')
+    parser.add_argument('--training_percentage',    type=float,     default=0.7,                help='Percentage of the dataset used for training')
 
-# noise samples creation
-parser.add_argument('--noise_source_path',      type=str,       default='files/',           help='Path of the noise source')
-parser.add_argument('--noise_output_path',      type=str,       default='data/26 silence/', help='Number of test samples per each class')
-parser.add_argument('--noise_samples',          type=int,       default=5000,               help='Number of noise samples to create')
-parser.add_argument('--seed',                   type=int,       default=30,                 help='Seed used for training set creation')
+    # noise samples creation
+    parser.add_argument('--noise_source_path',      type=str,       default='files/',           help='Path of the noise source')
+    parser.add_argument('--noise_output_path',      type=str,       default='data/26 silence/', help='Number of test samples per each class')
+    parser.add_argument('--noise_samples',          type=int,       default=5000,               help='Number of noise samples to create')
+    parser.add_argument('--seed',                   type=int,       default=30,                 help='Seed used for training set creation')
 
 
-# Network arguments
-parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',      help="Architecture of the model to use")
-parser.add_argument('--filters',        type=int,   default=[128, 64], nargs="+",   help='Number of filters per layer')
-parser.add_argument('--kernel',         type=int,   default=[2, 2], nargs="+",      help='Kernel_size')
-parser.add_argument('--stride',         type=int,   default=[1, 1], nargs="+",      help='Stride of the kernel')
-parser.add_argument('--pool',           type=int,   default=[1,1], nargs="+",       help='Pool size')
-parser.add_argument('--hidden_layers',  type=int,   default=2,                      help='Number of convolutional stacked layers')
-parser.add_argument('--dropout_prob',   type=float, default=0.25,                    help='Dropout probability')
+    # Network arguments
+    parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',      help="Architecture of the model to use")
+    parser.add_argument('--filters',        type=int,   default=[128, 64], nargs="+",   help='Number of filters per layer')
+    parser.add_argument('--kernel',         type=int,   default=[2, 2], nargs="+",      help='Kernel_size')
+    parser.add_argument('--stride',         type=int,   default=[1, 1], nargs="+",      help='Stride of the kernel')
+    parser.add_argument('--pool',           type=int,   default=[1,1], nargs="+",       help='Pool size')
+    parser.add_argument('--hidden_layers',  type=int,   default=2,                      help='Number of convolutional stacked layers')
+    parser.add_argument('--dropout_prob',   type=float, default=0.25,                    help='Dropout probability')
 
-# Training argumenrs
-parser.add_argument('--batchsize',      type=int,   default=64,                help='Training batch size')
-parser.add_argument('--num_epochs',     type=int,   default=100,               help='Number of training epochs')
+    # Training argumenrs
+    parser.add_argument('--batchsize',      type=int,   default=64,                help='Training batch size')
+    parser.add_argument('--num_epochs',     type=int,   default=100,               help='Number of training epochs')
 
-# Save arguments
-parser.add_argument('--ckp_folder',     type=str,   default='models/',    help='Where to save models and params')
-parser.add_argument('--training_logs_folder',type=str,   default='training_logs/',    help='Where to save training logs and params')
+    # Save arguments
+    parser.add_argument('--ckp_folder',     type=str,   default='models/',    help='Where to save models and params')
+    parser.add_argument('--training_logs_folder',type=str,   default='training_logs/',    help='Where to save training logs and params')
 
+    return parser.parse_args()
 
 import numpy as np
 if __name__ == "__main__":
 
     # Parse input arguments
-    args = parser.parse_args()
+    args = get_args()
 
     frames = 97
     coeffs = 40
