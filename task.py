@@ -2,7 +2,7 @@ import argparse
 import tensorflow as tf
 import util as u
 from model import ASRModel
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, RemoteMonitor
 from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -92,7 +92,8 @@ if __name__ == "__main__":
     filepath = os.path.join(out_dir, 'ckp')
 
     checkpoint = ModelCheckpoint(filepath, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=2)
-    history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, validation_data=(X_val, Y_val), callbacks=[checkpoint])
+    remoteMonitor = RemoteMonitor(root='http://localhost:9000', path='/publish/epoch/end/', field='data', headers=None, send_as_json=False)
+    history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, validation_data=(X_val, Y_val), callbacks=[checkpoint, remoteMonitor])
 
     model.architecture.summary()
     
