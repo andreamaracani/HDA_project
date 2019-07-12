@@ -28,7 +28,7 @@ input_path = "data/"
 tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=1, training_percentage = 0.8,
                                                           sample_shape=(97, 40), number_of_filters=40, addDelta=False,
                                                           frame_duration=0.025, frame_step=0.010 , max_classes = 6,
-                                                          printInfo=True, normalize=True)
+                                                          printInfo=True, normalize=False)
 
 te = va
 te_l = va_l
@@ -45,18 +45,17 @@ te_l = keras.utils.to_categorical(te_l, num_classes)
 
 model = Sequential()
 
-
-#6 classes no delta 64x64 -> train=97.30% validation = 93.67%
-#6 classes delta 64x64 -> train=98.35% validation = 93.37%
-#6 classes no delta 97x40 -> local
-#6 classes delta 97x40 -> train=97.69% validation = 93.69%
-#6 classes delrta 97x40 normalized -> tf vm1
-#6 classes no delta 97x40 normalized -> tf vm2
-
+#6 classes no delta 64x64 -> train=??? validation = ???
+#6 classes delta 64x64 -> train=??? validation = ???
+#6 classes no delta 97x40 -> train=??? validation = 93.41%
+#6 classes delta 97x40 -> train=??? validation = ???
+#6 classes delrta 97x40 normalized -> train=??? validation = ???
+#6 classes no delta 97x40 normalized ->
+#
 model.add(Conv2D(64, (20, 8), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(1, 3)))
-model.add(Conv2D(64, (10, 4), padding='valid'))
+model.add(Conv2D(64, (10, 4), padding='same'))
 model.add(Activation('relu'))
 
 model.add(Flatten())
@@ -66,6 +65,43 @@ model.add(Dense(128))
 model.add(Activation('relu'))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
+
+#6 classes no delta 64x64 -> train=97.30% validation = 93.67%
+#6 classes delta 64x64 -> train=98.35% validation = 93.37%
+#6 classes no delta 97x40 -> train=96.83% validation = 93.41%
+#6 classes delta 97x40 -> train=97.69% validation = 93.69%
+#6 classes delrta 97x40 normalized -> train=96.23% validation = 93.50%
+#6 classes no delta 97x40 normalized -> tf vm2
+#
+# model.add(Conv2D(64, (20, 8), padding='same', input_shape=tr.shape[1:]))
+# model.add(Activation('relu'))
+# model.add(MaxPooling2D(pool_size=(1, 3)))
+# model.add(Conv2D(64, (10, 4), padding='valid'))
+# model.add(Activation('relu'))
+#
+# model.add(Flatten())
+# model.add(Dense(32))
+# model.add(Activation('linear'))
+# model.add(Dense(128))
+# model.add(Activation('relu'))
+# model.add(Dense(num_classes))
+# model.add(Activation('softmax'))
+
+
+
+##### DAVIDE4 all classes (delta) 97x40 -> train 92.56, test = 81.01
+##### 64 filters (20,8)
+##### relu
+##### max pool (1,3)
+
+##### 64 filters (10,4)
+##### relu
+#####
+##### flatten
+##### 32 dense linear
+##### 128 dense relu
+##### softmax
+
 
 
 #############   6 classes (no delta) 95% train, 94.38% test
