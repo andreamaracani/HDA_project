@@ -270,13 +270,13 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
     if normalize:
         print("NORMALIZING....")
         if addDelta:
-            training = normalize(training, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
-            validation = normalize(validation, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
-            test = normalize(test, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
+            training = normalize_data(training, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
+            validation = normalize_data(validation, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
+            test = normalize_data(test, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
         else:
-            training = normalize(training, 1, max_static, min_static)
-            validation = normalize(training, 1, max_static, min_static)
-            test = normalize(training, 1, max_static, min_static)
+            training = normalize_data(training, 1, max_static, min_static)
+            validation = normalize_data(training, 1, max_static, min_static)
+            test = normalize_data(training, 1, max_static, min_static)
 
     if printInfo:
         print(get_dataset_info(input_path))
@@ -284,7 +284,8 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
 
     return training, validation, test, training_l, validation_l, test_l
 
-def normalize (set, channels, max, min):
+
+def normalize_data(set, channels, max, min):
 
     if channels == 1:
         return (set-min)/(max-min)
