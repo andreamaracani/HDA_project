@@ -28,7 +28,7 @@ input_path = "data/"
 tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=1, training_percentage = 0.8,
                                                           sample_shape=(97, 40, 3), number_of_filters=40, addDelta=True,
                                                           frame_duration=0.025, frame_step=0.010 , max_classes = 6,
-                                                          printInfo=True)
+                                                          printInfo=True, normalize=True)
 
 te = va
 te_l = va_l
@@ -47,9 +47,9 @@ model = Sequential()
 
 
 #6 classes no delta 64x64 -> train=97.30% validation = 93.67%
-#6 classes delta 64x64 -> tf vm2
+#6 classes delta 64x64 -> train=98.35% validation = 93.37%
 #6 classes no delta 97x40 -> local
-#6 classes delta 97x40 -> tf1
+#6 classes delta 97x40 -> train=97.69% validation = 93.69%
 model.add(Conv2D(64, (20, 8), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(1, 3)))
@@ -405,8 +405,8 @@ model.compile(loss='categorical_crossentropy',
 
 tr = tr.astype('float32')
 te = te.astype('float32')
-tr /= 255
-te /= 255
+# tr /= 255
+# te /= 255
 
 if not data_augmentation:
 
