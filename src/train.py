@@ -104,7 +104,6 @@ if __name__ == "__main__":
             X_val, y_val = self.validation_data[0], self.validation_data[1]
             y_predict = np.asarray(model.architecture.predict(X_val))
 
-            print(y_predict.shape)
             y_val = np.argmax(y_val, axis=1)
             y_predict = np.argmax(y_predict, axis=1)
 
@@ -132,7 +131,7 @@ if __name__ == "__main__":
     Y_test = to_categorical(Y_test, num_classes)
 
     # training
-    out_dir = Path(args.ckp_folder)
+    out_dir = args.ckp_folder
     out_dir = os.path.join(os.getcwd(), out_dir)
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
@@ -191,8 +190,10 @@ if __name__ == "__main__":
     plt.savefig('plots/loss.png', format='png')
 
     # training
-    training_logs_folder = Path(args.training_logs_folder)
-    training_logs_folder.mkdir(parents=True, exist_ok=True)
+    training_logs_folder = args.training_logs_folder
+    training_logs_folder = os.path.join(os.getcwd(), training_logs_folder)
+    if not os.path.isdir(training_logs_folder):
+        os.makedirs(training_logs_folder)
     filepath = os.path.join(training_logs_folder, 'training'+str(date)+'.json')
 
     # building data:
