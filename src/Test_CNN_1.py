@@ -40,31 +40,22 @@ te_l = keras.utils.to_categorical(te_l, num_classes)
 
 model = Sequential()
 
-model.add(Conv2D(128, (3, 3), padding='same', input_shape=tr.shape[1:]))
+model.add(Conv2D(64, (20, 8), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
-model.add(Conv2D(64, (3, 3), padding='valid', strides=(2, 2)))
+model.add(MaxPooling2D(pool_size=(1, 3)))
+model.add(Conv2D(64, (10, 4), padding='valid'))
 model.add(Activation('relu'))
-model.add(Conv2D(128, (3, 3), padding='same'))
-model.add(Activation('relu'))
-model.add(Conv2D(128, (3, 3), padding='same', strides=(2, 2)))
-model.add(Activation('relu'))
-model.add(Conv2D(512, (3, 3), padding='valid'))
-model.add(Activation('relu'))
-model.add(Dropout(0.25))
 
 model.add(Flatten())
 model.add(Dense(32))
 model.add(Activation('linear'))
-model.add(Dense(64))
+model.add(Dense(128))
 model.add(Activation('relu'))
-model.add(Dense(64))
-model.add(Activation('relu'))
-model.add(Dropout(0.5))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 
 
-#local...6 classes
+#############   6 classes (no delta) 95% train, 94.38% test
 # model.add(Conv2D(64, (3, 3), padding='same', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(Conv2D(64, (3, 3), padding='same', strides=(2, 2)))
@@ -88,7 +79,7 @@ model.add(Activation('softmax'))
 # model.add(Dense(num_classes))
 # model.add(Activation('softmax'))
 
-# 2 classes 99.77% train, 99.37% test.... 6 classes tf vm2 = ????
+# 2 classes 99.77% train, 99.37% test.... 6 classes train = 97.89% validation = 93.93%
 # model.add(Conv2D(128, (3, 3), padding='same', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(Conv2D(64, (3, 3), padding='valid', strides=(2, 2)))
@@ -157,6 +148,9 @@ model.add(Activation('softmax'))
 # model.add(Activation('softmax'))
 
 # all 64 no stride 2 class = 99.37%, local = 98.12% (no delta)
+#
+# all classes 20 epochs: train = 78%, test = 82%
+#
 # model.add(Conv2D(64, (3, 3), padding='same', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(Conv2D(64, (3, 3), padding='same'))
