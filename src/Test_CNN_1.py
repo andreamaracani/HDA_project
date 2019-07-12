@@ -21,14 +21,14 @@ input_path = "data/"
 # tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes=4)
 
 tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=1, training_percentage = 0.8,
-                                                          sample_shape=(64, 64), number_of_filters=64, addDelta=False,
+                                                          sample_shape=(64, 64), number_of_filters=64, addDelta=True,
                                                           frame_duration=0.03, frame_step=0.015 , max_classes = 6,
                                                           printInfo=True)
 
 te = va
 te_l = va_l
-tr = np.expand_dims(tr, axis=-1)
-te = np.expand_dims(te, axis=-1)
+# tr = np.expand_dims(tr, axis=-1)
+# te = np.expand_dims(te, axis=-1)
 
 print('x_train shape:', tr.shape)
 print(tr.shape[0], 'train samples')
