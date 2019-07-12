@@ -243,8 +243,8 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
                         max_delta_delta = np.max([np.max(features[:, :, 2]), max_delta_delta])
                         min_delta_delta = np.min([np.min(features[:, :, 2]), min_delta_delta])
                     else:
-                        max_static = np.max(np.max(features), max_static)
-                        min_static = np.min(np.min(features), min_static)
+                        max_static = np.max([np.max(features), max_static])
+                        min_static = np.min([np.min(features), min_static])
 
             if i < nTrain:
                 training[training_permutation[training_index], ] = features
