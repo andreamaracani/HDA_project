@@ -9,7 +9,7 @@ import util as u
 import numpy as np
 
 batch_size = 64
-num_classes = 2 #4
+num_classes = 6 #4
 epochs = 20
 data_augmentation = False
 num_predictions = 20
@@ -20,10 +20,13 @@ input_path = "data/"
 # The data, split between train and test sets:
 # tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes=4)
 
-tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=80, training_percentage = 0.9,
+tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=1, training_percentage = 0.8,
                                                           sample_shape=(64, 64), number_of_filters=64, addDelta=False,
-                                                          frame_duration=0.03, frame_step=0.015 , max_classes = 2,
+                                                          frame_duration=0.03, frame_step=0.015 , max_classes = 6,
                                                           printInfo=True)
+
+te = va
+te_l = va_l
 tr = np.expand_dims(tr, axis=-1)
 te = np.expand_dims(te, axis=-1)
 
@@ -36,7 +39,6 @@ tr_l = keras.utils.to_categorical(tr_l, num_classes)
 te_l = keras.utils.to_categorical(te_l, num_classes)
 
 model = Sequential()
-
 
 model.add(Conv2D(128, (3, 3), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
@@ -61,7 +63,56 @@ model.add(Dropout(0.5))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 
-# local....... 2 classes
+
+#local...6 classes
+# model.add(Conv2D(64, (3, 3), padding='same', input_shape=tr.shape[1:]))
+# model.add(Activation('relu'))
+# model.add(Conv2D(64, (3, 3), padding='same', strides=(2, 2)))
+# model.add(Activation('relu'))
+# model.add(Conv2D(128, (3, 3), padding='valid'))
+# model.add(Activation('relu'))
+# model.add(Conv2D(128, (3, 3), padding='same', strides=(2, 2)))
+# model.add(Activation('relu'))
+# model.add(Conv2D(128, (3, 3), padding='valid'))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.25))
+#
+# model.add(Flatten())
+# model.add(Dense(32))
+# model.add(Activation('linear'))
+# model.add(Dense(64))
+# model.add(Activation('relu'))
+# model.add(Dense(64))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.5))
+# model.add(Dense(num_classes))
+# model.add(Activation('softmax'))
+
+# 2 classes 99.77% train, 99.37% test.... 6 classes tf vm2 = ????
+# model.add(Conv2D(128, (3, 3), padding='same', input_shape=tr.shape[1:]))
+# model.add(Activation('relu'))
+# model.add(Conv2D(64, (3, 3), padding='valid', strides=(2, 2)))
+# model.add(Activation('relu'))
+# model.add(Conv2D(128, (3, 3), padding='same'))
+# model.add(Activation('relu'))
+# model.add(Conv2D(128, (3, 3), padding='same', strides=(2, 2)))
+# model.add(Activation('relu'))
+# model.add(Conv2D(512, (3, 3), padding='valid'))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.25))
+#
+# model.add(Flatten())
+# model.add(Dense(32))
+# model.add(Activation('linear'))
+# model.add(Dense(64))
+# model.add(Activation('relu'))
+# model.add(Dense(64))
+# model.add(Activation('relu'))
+# model.add(Dropout(0.5))
+# model.add(Dense(num_classes))
+# model.add(Activation('softmax'))
+
+# 98.96% training, 100% test....... 2 classes
 # model.add(Conv2D(128, (3, 3), padding='valid', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(Conv2D(64, (3, 3), padding='valid', strides=(2, 2)))
