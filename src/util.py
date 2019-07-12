@@ -127,7 +127,7 @@ def create_dataset(input_path, max_files_per_class=None, save=False, printInfo=T
     return np.array(dataset)
 
 
-def create_dataset_and_split(input_path, n_samples_test, training_percentage, sample_shape, number_of_filters = 40, frame_duration=0.025, frame_step=0.010, useDCT = False , addDelta = False, max_classes = None, printInfo=True):
+def create_dataset_and_split(input_path, n_samples_test, training_percentage, sample_shape, number_of_filters = 40, frame_duration=0.025, frame_step=0.010, useDCT = False , addDelta = False, max_classes = None, normalize = False, printInfo=True):
 
     # get the path of every class directory of the dataset
     classes = get_class_dirs(input_path)
@@ -201,6 +201,13 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
         nVal = composition[c, 1]
         nTest = composition[c, 2]
 
+        max_static = None
+        min_static = None
+        max_delta = None
+        min_delta = None
+        max_delta_delta = None
+        min_delta_delta = None
+
         for i in range(nFiles):
             fs, data = wavfile.read(files[p[i]])
 
@@ -210,6 +217,34 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
                 data = data[0:16000]
 
             features = f.get_features(data, fs, window_function=np.hamming, number_of_filters=number_of_filters, useDCT=useDCT, frame_duration=frame_duration, frame_step=frame_step, addDelta=addDelta)
+
+            if normalize:
+
+                if max_static is None:
+
+                    if addDelta:
+                        max_static = np.max(features[:, :, 0])
+                        min_static = np.min(features[:, :, 0])
+                        max_delta = np.max(features[:, :, 1])
+                        min_delta = np.min(features[:, :, 1])
+                        max_delta_delta = np.max(features[:, :, 2])
+                        min_delta_delta = np.min(features[:, :, 2])
+                    else :
+                        max_static = np.max(features)
+                        min_static = np.min(features)
+
+                else:
+
+                    if addDelta:
+                        max_static = np.max(np.max(features[:, :, 0]), max_static)
+                        min_static = np.min(np.min(features[:, :, 0]), min_static)
+                        max_delta = np.max(np.max(features[:, :, 1]), max_delta)
+                        min_delta = np.min(np.min(features[:, :, 1]), min_delta)
+                        max_delta_delta = np.max(np.max(features[:, :, 2]), max_delta_delta)
+                        min_delta_delta = np.min(np.min(features[:, :, 2]), min_delta_delta)
+                    else:
+                        max_static = np.max(np.max(features), max_static)
+                        min_static = np.min(np.min(features), min_static)
 
             if i < nTrain:
                 training[training_permutation[training_index], ] = features
@@ -232,13 +267,32 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
                 print("Dataset creation is " + str(int(percentage)) + "% completed")
 
     # end for
+    if normalize:
+        print("NORMALIZING....")
+        if addDelta:
+            training = normalize(training, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
+            validation = normalize(validation, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
+            test = normalize(test, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
+        else:
+            training = normalize(training, 1, max_static, min_static)
+            validation = normalize(training, 1, max_static, min_static)
+            test = normalize(training, 1, max_static, min_static)
 
     if printInfo:
         print(get_dataset_info(input_path))
 
+
     return training, validation, test, training_l, validation_l, test_l
 
+def normalize (set, channels, max, min):
 
+    if channels == 1:
+        return (set-min)/(max-min)
+    elif channels == 3:
+        set[:, :, :, 0] = (set[:, :, :, 0] - min[0]) / (max[0] - min[0])
+        set[:, :, :, 1] = (set[:, :, :, 1] - min[1]) / (max[1] - min[1])
+        set[:, :, :, 2] = (set[:, :, :, 2] - min[2]) / (max[2] - min[2])
+        return set
 
 def get_class_dirs(input_path):
     """From the dataset input path it finds the path of all class folders
