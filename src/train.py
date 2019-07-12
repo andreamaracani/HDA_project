@@ -137,7 +137,7 @@ if __name__ == "__main__":
         os.makedirs(out_dir)
     out_dir = os.path.join(out_dir, 'ckp')
 
-    checkpoint = ModelCheckpoint(out_dir, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=1)
+    checkpoint = ModelCheckpoint(out_dir, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=10)
     callbacks = [checkpoint]
     metrics = Metrics()
     callbacks.append(metrics)

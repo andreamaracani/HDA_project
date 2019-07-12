@@ -126,14 +126,8 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
 
     # X = ZeroPadding2D((0, 4))(X_input)
 
-    # normalizing batch
-    X = BatchNormalization(axis=-1)(X_input)
-
     # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
-    X = Conv2D(64, (64, 8), strides=(1,1), name='conv0')(X)
-
-    # normalizing batch
-    X = BatchNormalization(axis=-1)(X)
+    X = Conv2D(64, (20, 8), strides=(1,1), name='conv0')(X_input)
 
     # non-linearity
     X = Activation('relu')(X)
@@ -141,19 +135,12 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
     # pooling in frequency within a region of t=1, f=3
     X = MaxPooling2D((1, 3), name='maxpool')(X)
 
-    # Dropout
-    X= Dropout(dropout_prob)(X)
-
     # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
-    X = Conv2D(64, (32, 4), strides=(1, 1), name='conv1')(X)
+    X = Conv2D(64, (10, 4), strides=(1, 1), name='conv1')(X)
 
-    # normalizing batch
-    X = BatchNormalization(axis=-1)(X)
 
     # non-linearity
     X = Activation('relu')(X)
-
-    X = Dropout(dropout_prob)(X)
     
     # flatten the filters
     X = Flatten()(X)
