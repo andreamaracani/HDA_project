@@ -20,9 +20,14 @@ input_path = "data/"
 # The data, split between train and test sets:
 # tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes=4)
 
+# tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=1, training_percentage = 0.8,
+#                                                           sample_shape=(64, 64, 3), number_of_filters=64, addDelta=True,
+#                                                           frame_duration=0.03, frame_step=0.015 , max_classes = 6,
+#                                                           printInfo=True)
+
 tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=1, training_percentage = 0.8,
-                                                          sample_shape=(64, 64, 3), number_of_filters=64, addDelta=True,
-                                                          frame_duration=0.03, frame_step=0.015 , max_classes = 6,
+                                                          sample_shape=(97, 40, 3), number_of_filters=40, addDelta=True,
+                                                          frame_duration=0.025, frame_step=0.010 , max_classes = 6,
                                                           printInfo=True)
 
 te = va
@@ -40,6 +45,11 @@ te_l = keras.utils.to_categorical(te_l, num_classes)
 
 model = Sequential()
 
+
+#6 classes no delta 64x64 -> train=97.30% validation = 93.67%
+#6 classes delta 64x64 -> tf vm2
+#6 classes no delta 97x40 -> local
+#6 classes delta 97x40 -> tf1
 model.add(Conv2D(64, (20, 8), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
 model.add(MaxPooling2D(pool_size=(1, 3)))
