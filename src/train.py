@@ -132,7 +132,7 @@ if __name__ == "__main__":
 
     # training
     out_dir = args.ckp_folder
-    out_dir = os.path.join(os.getcwd(), out_dir)
+    # out_dir = os.path.join(os.getcwd(), out_dir)
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
     out_dir = os.path.join(out_dir, 'ckp')
@@ -191,7 +191,7 @@ if __name__ == "__main__":
 
     # training
     training_logs_folder = args.training_logs_folder
-    training_logs_folder = os.path.join(os.getcwd(), training_logs_folder)
+    # training_logs_folder = os.path.join(os.getcwd(), training_logs_folder)
     if not os.path.isdir(training_logs_folder):
         os.makedirs(training_logs_folder)
     filepath = os.path.join(training_logs_folder, 'training'+str(date)+'.json')
