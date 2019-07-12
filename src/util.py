@@ -275,8 +275,8 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
             test = normalize_data(test, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
         else:
             training = normalize_data(training, 1, max_static, min_static)
-            validation = normalize_data(training, 1, max_static, min_static)
-            test = normalize_data(training, 1, max_static, min_static)
+            validation = normalize_data(validation, 1, max_static, min_static)
+            test = normalize_data(test, 1, max_static, min_static)
 
     if printInfo:
         print(get_dataset_info(input_path))
