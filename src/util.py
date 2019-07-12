@@ -236,12 +236,12 @@ def create_dataset_and_split(input_path, n_samples_test, training_percentage, sa
                 else:
 
                     if addDelta:
-                        max_static = np.max(np.max(features[:, :, 0]), max_static)
-                        min_static = np.min(np.min(features[:, :, 0]), min_static)
-                        max_delta = np.max(np.max(features[:, :, 1]), max_delta)
-                        min_delta = np.min(np.min(features[:, :, 1]), min_delta)
-                        max_delta_delta = np.max(np.max(features[:, :, 2]), max_delta_delta)
-                        min_delta_delta = np.min(np.min(features[:, :, 2]), min_delta_delta)
+                        max_static = np.max([np.max(features[:, :, 0]), max_static])
+                        min_static = np.min([np.min(features[:, :, 0]), min_static])
+                        max_delta = np.max([np.max(features[:, :, 1]), max_delta])
+                        min_delta = np.min([np.min(features[:, :, 1]), min_delta])
+                        max_delta_delta = np.max([np.max(features[:, :, 2]), max_delta_delta])
+                        min_delta_delta = np.min([np.min(features[:, :, 2]), min_delta_delta])
                     else:
                         max_static = np.max(np.max(features), max_static)
                         min_static = np.min(np.min(features), min_static)
