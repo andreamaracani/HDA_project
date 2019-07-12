@@ -13,7 +13,7 @@ seed = 30
 #u.get_samples_from_noise(input_path, output_path, input_name, output_name, nFiles, nSamples, duration, seed)
 
 #dataset = u.create_dataset(input_path,10)
-tr,va,te,tr_l,va_l,te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes= 2, normalize=True)
+tr,va,te,tr_l,va_l,te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes= 2, normalize=True, addDelta=True)
 
 print(tr.shape)
 print(va.shape)
