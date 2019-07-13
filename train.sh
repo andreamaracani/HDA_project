@@ -1,8 +1,8 @@
 python3 src/train.py \
 --datasetpath="data/" \
---classes=27 \
---architecture="improved-cnn-trad-fpool3" \
+--classes=2 \
+--architecture="sequential-model" \
 --dropout_prob=0.3 \
 --batchsize=64 \
 --ckp_folder="checkpoints/" \
---num_epochs=20\
+--num_epochs=1\

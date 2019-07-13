@@ -51,26 +51,7 @@ def get_args():
 
     return parser.parse_args()
 
-def far_metric(y_true, y_pred):
-    """
-    Return the FAR(False Acceptance Rate) metric which is the ratio
-    total false acceptance/total false attempts.
 
-    Where total false acceptance is the total number of non-keywords recognized as keywords.
-
-    """
-    # print(y_true)
-    # print(y_pred)
-    # print(K.sum(y_true, y_pred))
-
-
-    # return K.sum(y_true, y_pred)[-1]
-# def frr_metric(y_true, y_pred):
-#     """
-#     Return the FRR(False Rejection Rate) metric which is the ratio
-#     total false rejection/total true attempts
-#     """
-#     return 
 
 import numpy as np
 if __name__ == "__main__":
@@ -95,23 +76,25 @@ if __name__ == "__main__":
                                 loss="categorical_crossentropy", 
                                 metrics=["accuracy"])
 
-    class Metrics(Callback):
+    # class Metrics(Callback):
 
-        def on_train_begin(self, logs={}):
-            self._data = np.zeros((num_classes, num_classes))
+    #     def on_test_begin(self, logs={}):
+    #         self._data = np.zeros((num_classes, num_classes))
 
-        def on_epoch_end(self, batch, logs={}):
-            X_val, y_val = self.validation_data[0], self.validation_data[1]
-            y_predict = np.asarray(model.architecture.predict(X_val))
+    #     def on_epoch_end(self, batch, logs={}):
+    #         X_val, y_val = self.validation_data[0], self.validation_data[1]
+    #         y_predict = np.asarray(model.architecture.predict(X_val))
 
-            y_val = np.argmax(y_val, axis=1)
-            y_predict = np.argmax(y_predict, axis=1)
+    #         y_val = np.argmax(y_val, axis=1)
+    #         y_predict = np.argmax(y_predict, axis=1)
+    #         print(y_val[0], y_predict[0])
 
-            self._data[y_val, y_predict] = self._data[y_val, y_predict] + 1
-            return
+    #         for sample in range(self.validation_data[0].shape[0]):
+    #             self._data[y_val[sample], y_predict[sample]] = self._data[y_val[sample], y_predict[sample]] + 1
+    #         return
 
-        def get_data(self):
-            return self._data
+    #     def get_data(self):
+    #         return self._data
         
     # loading the dataset
     input_path_data = args.datasetpath
@@ -139,22 +122,8 @@ if __name__ == "__main__":
 
     checkpoint = ModelCheckpoint(out_dir, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=10)
     callbacks = [checkpoint]
-    metrics = Metrics()
-    callbacks.append(metrics)
+
     history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, validation_data=(X_val, Y_val), callbacks=callbacks)
-
-    print(metrics.get_data())
-    confusion_matrix = metrics.get_data()
-
-    # False Acceptance Rate = total false acceptance/total false attempts
-    # where total false acceptance is the total number of non-keywords recognized as keywords.
-    false_attempts = confusion_matrix[-1, :].sum()
-    far = (false_attempts - confusion_matrix[-1, -1]) / false_attempts
-    print(far)
-    # False Rejection Rate - total false rejection/total true attempts
-    # where total false rejection is the total number of keywords recognized as non-keyword
-    frr = (confusion_matrix[:, -1].sum() - confusion_matrix[-1, -1])/ confusion_matrix[:-1, :-1].sum().sum()
-    print(frr)
 
 
     model.architecture.summary()
@@ -163,7 +132,30 @@ if __name__ == "__main__":
     print("Evaluating the model")
 
     # evaluate with validation
-    preds = model.architecture.evaluate(X_val, Y_val)
+
+    # preparing the callback for confusion matrix
+    y_predict = model.architecture.predict(X_test)
+    y_true = Y_test
+    confusion_matrix = np.zeros((num_classes, num_classes))
+
+    y_predict = np.argmax(y_predict, axis=1)
+    y_true = np.argmax(y_true, axis=1)
+
+    for sample in range(y_predict.shape[0]):
+        confusion_matrix[y_true[sample], y_predict[sample]] = confusion_matrix[y_true[sample], y_predict[sample]] + 1
+
+    # False Acceptance Rate = total false acceptance/total false attempts
+    # where total false acceptance is the total number of non-keywords recognized as keywords.
+    false_attempts = confusion_matrix[-1, :].sum()
+    far = (false_attempts - confusion_matrix[-1, -1]) / false_attempts
+
+    # False Rejection Rate - total false rejection/total true attempts
+    # where total false rejection is the total number of keywords recognized as non-keyword
+    frr = (confusion_matrix[:, -1].sum() - confusion_matrix[-1, -1])/ confusion_matrix[:-1, :-1].sum().sum()
+
+
+    
+    preds = model.architecture.evaluate(x=X_test, y=Y_test, )
 
 
     date = model.save()
@@ -198,7 +190,10 @@ if __name__ == "__main__":
 
     # building data:
     training_data = {'params':vars(args),'model':model.architecture.to_json(), \
-        'loss':history.history['loss'], 'acc':history.history['acc'], 'far':far, 'frr':frr, 'confusion_matrix':confusion_matrix.tolist()}
+        'loss':history.history['loss'], 'acc':history.history['acc'], 
+            'val_loss':history.history['val_loss'], 'val_acc':history.history['val_acc'], \
+            'test_loss':str(preds[0]), 'test_acc':str(preds[1]),\
+            'far':far, 'frr':frr, 'confusion_matrix':confusion_matrix.tolist()}
 
     with open(filepath, 'w') as f:
         json.dump(training_data, f, indent=4)
