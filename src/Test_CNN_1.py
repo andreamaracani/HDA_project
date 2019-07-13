@@ -20,10 +20,15 @@ input_path = "data/"
 # The data, split between train and test sets:
 # tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path,  50, 0.7, (97, 40, 3), max_classes=4)
 
+# tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=1, training_percentage = 0.8,
+#                                                           sample_shape=(64, 64, 3), number_of_filters=64, addDelta=True,
+#                                                           frame_duration=0.03, frame_step=0.015 , max_classes = 6,
+#                                                           printInfo=True)
+
 tr, va, te, tr_l, va_l, te_l = u.create_dataset_and_split(input_path, n_samples_test=1, training_percentage = 0.8,
-                                                          sample_shape=(64, 64), number_of_filters=64, addDelta=False,
-                                                          frame_duration=0.03, frame_step=0.015 , max_classes = 6,
-                                                          printInfo=True)
+                                                          sample_shape=(97, 40), number_of_filters=40, addDelta=False,
+                                                          frame_duration=0.025, frame_step=0.010 , max_classes = 6,
+                                                          printInfo=True, normalize=False)
 
 te = va
 te_l = va_l
@@ -40,31 +45,66 @@ te_l = keras.utils.to_categorical(te_l, num_classes)
 
 model = Sequential()
 
-model.add(Conv2D(128, (3, 3), padding='same', input_shape=tr.shape[1:]))
+#6 classes no delta 64x64 -> train=??? validation = ???
+#6 classes delta 64x64 -> train=??? validation = ???
+#6 classes no delta 97x40 -> train=??? validation = 93.41%
+#6 classes delta 97x40 -> train=??? validation = ???
+#6 classes delrta 97x40 normalized -> train=??? validation = ???
+#6 classes no delta 97x40 normalized ->
+#
+model.add(Conv2D(64, (20, 8), padding='same', input_shape=tr.shape[1:]))
 model.add(Activation('relu'))
-model.add(Conv2D(64, (3, 3), padding='valid', strides=(2, 2)))
+model.add(MaxPooling2D(pool_size=(1, 3)))
+model.add(Conv2D(64, (10, 4), padding='same'))
 model.add(Activation('relu'))
-model.add(Conv2D(128, (3, 3), padding='same'))
-model.add(Activation('relu'))
-model.add(Conv2D(128, (3, 3), padding='same', strides=(2, 2)))
-model.add(Activation('relu'))
-model.add(Conv2D(512, (3, 3), padding='valid'))
-model.add(Activation('relu'))
-model.add(Dropout(0.25))
 
 model.add(Flatten())
 model.add(Dense(32))
 model.add(Activation('linear'))
-model.add(Dense(64))
+model.add(Dense(128))
 model.add(Activation('relu'))
-model.add(Dense(64))
-model.add(Activation('relu'))
-model.add(Dropout(0.5))
 model.add(Dense(num_classes))
 model.add(Activation('softmax'))
 
+#6 classes no delta 64x64 -> train=97.30% validation = 93.67%
+#6 classes delta 64x64 -> train=98.35% validation = 93.37%
+#6 classes no delta 97x40 -> train=96.83% validation = 93.41%
+#6 classes delta 97x40 -> train=97.69% validation = 93.69%
+#6 classes delrta 97x40 normalized -> train=96.23% validation = 93.50%
+#6 classes no delta 97x40 normalized -> tf vm2
+#
+# model.add(Conv2D(64, (20, 8), padding='same', input_shape=tr.shape[1:]))
+# model.add(Activation('relu'))
+# model.add(MaxPooling2D(pool_size=(1, 3)))
+# model.add(Conv2D(64, (10, 4), padding='valid'))
+# model.add(Activation('relu'))
+#
+# model.add(Flatten())
+# model.add(Dense(32))
+# model.add(Activation('linear'))
+# model.add(Dense(128))
+# model.add(Activation('relu'))
+# model.add(Dense(num_classes))
+# model.add(Activation('softmax'))
 
-#local...6 classes
+
+
+##### DAVIDE4 all classes (delta) 97x40 -> train 92.56, test = 81.01
+##### 64 filters (20,8)
+##### relu
+##### max pool (1,3)
+
+##### 64 filters (10,4)
+##### relu
+#####
+##### flatten
+##### 32 dense linear
+##### 128 dense relu
+##### softmax
+
+
+
+#############   6 classes (no delta) 95% train, 94.38% test
 # model.add(Conv2D(64, (3, 3), padding='same', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(Conv2D(64, (3, 3), padding='same', strides=(2, 2)))
@@ -88,7 +128,7 @@ model.add(Activation('softmax'))
 # model.add(Dense(num_classes))
 # model.add(Activation('softmax'))
 
-# 2 classes 99.77% train, 99.37% test.... 6 classes tf vm2 = ????
+# 2 classes 99.77% train, 99.37% test.... 6 classes train = 97.89% validation = 93.93%
 # model.add(Conv2D(128, (3, 3), padding='same', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(Conv2D(64, (3, 3), padding='valid', strides=(2, 2)))
@@ -157,6 +197,9 @@ model.add(Activation('softmax'))
 # model.add(Activation('softmax'))
 
 # all 64 no stride 2 class = 99.37%, local = 98.12% (no delta)
+#
+# all classes 20 epochs: train = 78%, test = 82%
+#
 # model.add(Conv2D(64, (3, 3), padding='same', input_shape=tr.shape[1:]))
 # model.add(Activation('relu'))
 # model.add(Conv2D(64, (3, 3), padding='same'))
@@ -401,8 +444,8 @@ model.compile(loss='categorical_crossentropy',
 
 tr = tr.astype('float32')
 te = te.astype('float32')
-tr /= 255
-te /= 255
+# tr /= 255
+# te /= 255
 
 if not data_augmentation:
 
