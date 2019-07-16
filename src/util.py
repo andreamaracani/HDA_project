@@ -5,11 +5,14 @@
 from scipy.io import wavfile
 import features as f
 import numpy as np
+import math
 import random
+import librosa
 import os
 
 
-def get_samples_from_noise(input_path, output_path, nOutput, seed, input_name='noise', output_name='noise', nInput=6, duration=1):
+def get_samples_from_noise(input_path, output_path, nOutput, seed, input_name='noise', output_name='noise', nInput=6,
+                           duration=1):
     """From wav files of noise take random samples.
     :param input_path: directory path of input files.
     :param output_path: directory path of output samples.
@@ -37,7 +40,6 @@ def get_samples_from_noise(input_path, output_path, nOutput, seed, input_name='n
 
     # sample randomly input files and save output files
     for i in range(nOutput):
-
         # select a random file
         file_number = random.randrange(nInput)
 
@@ -45,299 +47,394 @@ def get_samples_from_noise(input_path, output_path, nOutput, seed, input_name='n
         number_of_samples = int(duration * sample_rates[file_number])
 
         # starting sample
-        sample_start = random.randrange(len(input_data[file_number])-number_of_samples-1)
+        sample_start = random.randrange(len(input_data[file_number]) - number_of_samples - 1)
 
         # output file = portion of input file of the user-defined duration
-        file = input_data[file_number][sample_start:sample_start+number_of_samples]
+        file = input_data[file_number][sample_start:sample_start + number_of_samples]
 
         # save output file
-        wavfile.write(output_path+output_name+str(i).zfill(len(str(nOutput)))+".wav", int(sample_rates[file_number]), file)
+        wavfile.write(output_path + output_name + str(i).zfill(len(str(nOutput))) + ".wav",
+                      int(sample_rates[file_number]), file)
 
 
-def create_dataset(input_path, max_files_per_class=None, save=False, printInfo=True):
-    """From the dataset input path it build up a big numpy array with all data.
-    :param input_path: directory path of the dataset.
-    :param max_files_per_class: maximum number of files for each class. If it is set to None we include all files
-    :param save. Save to disk a file for every class
-    :param printInfo: if it is true it prints infos about the dataset
-    :return: a numpy array containing the organized dataset
-    """
+def augment_sample(data, sample_rate, maximum_length,
+                   pitch_change_min=-1, pitch_change_max=1,
+                   speed_change_min=0.95, speed_change_max=1.05,
+                   noise_max=0.005):
+    assert len(data) / speed_change_min <= maximum_length, \
+        "with speed change parameters, the length of output exceed limit"
 
-    # get the path of every class directory of the dataset
-    classes = get_class_dirs(input_path)
+    # change pitch
+    pitch_change = np.random.uniform(low=pitch_change_min, high=pitch_change_max)
+    output = librosa.effects.pitch_shift(data, sample_rate, n_steps=pitch_change,
+                                         bins_per_octave=12, res_type='kaiser_best')
 
-    # number of all files in the dataset (just to estimate processing time)
-    number_of_all_files = get_number_of_files(input_path)
+    # change speed
+    speed_change = np.random.uniform(low=speed_change_min, high=speed_change_max)
+    output = librosa.effects.time_stretch(output, speed_change)
 
-    # initialize empty dataset
-    dataset = []
+    # add noise
+    noise_amp = noise_max * np.random.uniform() * np.max(data)
+    output = data + noise_amp * np.random.normal(size=data.shape[0])
 
-    # number of files already processed (just to estimate processing time)
-    files_processed = 0
-
-    # current percentage of the process
-    percentage = 0
-
-    if printInfo:
-        print("Starting creation of dataset...")
-        print("Dataset creation is " + str(int(percentage)) + "% completed")
-
-    # for every class
-    for c in range(len(classes)):
-        files = get_all_files(classes[c])
-
-        nFiles = len(files)
-
-        if max_files_per_class is not None:
-            nFiles = min(max_files_per_class, nFiles)
-
-        list_of_features = []
-        for i in range(nFiles):
-            fs, data = wavfile.read(files[i])
-
-            if len(data) < 16000:
-                data = np.pad(data, (0,16000-len(data)), mode="constant")
-            elif len(data) > 16000:
-                data = data[0:16000]
+    return output
 
 
-            features = f.get_features(data, fs, window_function=np.hamming, number_of_filters=40)
-            list_of_features.append(features)
+def augment_class(class_path, sample_rate=16000, maximum_length=17000,
+                  folder_name="augmentation/", percentage=0.25,
+                  pitch_change_min=-1, pitch_change_max=1,
+                  speed_change_min=0.95, speed_change_max=1.05,
+                  noise_max=0.005):
+    # create folder if not exists
+    if not os.path.exists(class_path + folder_name):
+        os.makedirs(class_path + folder_name)
 
-            # increase counter of files processed
-            files_processed = files_processed + 1
+    # delete pre existing files in this directory
+    delete_files_from_folder(class_path + folder_name)
 
-            if int(files_processed*100/number_of_all_files) > percentage and printInfo:
-                percentage = int(files_processed*100/number_of_all_files)
-                print("Dataset creation is " + str(int(percentage)) + "% completed")
+    files = get_all_files(class_path, exclude_directory_name=folder_name)
+    number_of_files = len(files)
+    number_of_files_to_add = int(number_of_files * percentage)
 
-        if save:
-            if printInfo:
-                print("Saving file for class " + str(c))
+    file_indices = np.random.randint(number_of_files, size=number_of_files_to_add)
 
-            np.save("class" + str(c) + ".npy", np.array(list_of_features))
-
-        dataset.append(list_of_features)
-
-    # end for
-
-    if printInfo:
-        print(get_dataset_info(input_path))
-
-    return np.array(dataset)
+    for i in range(len(file_indices)):
+        file_to_aug = files[file_indices[i]]
+        data, sample_rate = librosa.load(file_to_aug, sample_rate)
+        data = augment_sample(data, sample_rate, maximum_length,
+                              pitch_change_min=pitch_change_min, pitch_change_max=pitch_change_max,
+                              speed_change_min=speed_change_min, speed_change_max=speed_change_max,
+                              noise_max=noise_max)
+        # save output file
+        librosa.output.write_wav(class_path + folder_name + "aug_" + str(i).zfill(len(str(number_of_files_to_add))) +
+                                 ".wav", data.astype("float32"), sample_rate, norm=True)
 
 
-def create_dataset_and_split(input_path, n_samples_test, training_percentage, sample_shape, number_of_filters = 40, frame_duration=0.025, frame_step=0.010, useDCT = False , addDelta = False, max_classes = None, normalize = False, printInfo=True):
+def augment_dataset(dataset_path, sample_rate=16000, maximum_length=17000,
+                    folder_name="augmentation/", percentage=0.25,
+                    pitch_change_min=-1, pitch_change_max=1,
+                    speed_change_min=0.95, speed_change_max=1.05,
+                    noise_max=0.005, seed=1):
+    # set seed
+    np.random.seed(seed)
 
-    # get the path of every class directory of the dataset
-    classes = get_class_dirs(input_path)
+    path, class_names, files = os.walk(dataset_path).__next__()
 
-    #get number of classes
-    number_of_classes = len(classes)
+    class_paths = sorted([dataset_path + cn + "/" for cn in class_names])
 
-    if max_classes is not None:
-        number_of_classes = max_classes
+    for c in class_paths:
+        augment_class(c, sample_rate=sample_rate, maximum_length=maximum_length,
+                      folder_name=folder_name, percentage=percentage,
+                      pitch_change_min=pitch_change_min, pitch_change_max=pitch_change_max,
+                      speed_change_min=speed_change_min, speed_change_max=speed_change_max,
+                      noise_max=noise_max)
 
+
+def create_dataset_and_split(input_path,
+                             class_names=None,
+                             training_percentage=None,
+                             validation_percentage=None,
+                             test_percentage=None,
+                             training_samples=None,
+                             validation_samples=None,
+                             test_samples=None,
+
+                             pre_emphasis_coef=0.95,
+                             frame_length=400,
+                             frame_step=160,
+                             window_function=np.hamming,
+                             target_frame_number=110,
+                             random_time_shift=True,
+                             smooth=True,
+                             smooth_length=5,
+
+                             hertz_from=300,
+                             hertz_to=None,
+                             number_of_filters=40,
+                             power_of_2=True,
+                             dtype='float32',
+                             use_dct=False,
+                             add_delta=True,
+
+                            # NORMALIZATION
+                             shift_static=0, scale_static=1,
+                             shift_delta=0, scale_delta=1,
+                             shift_delta_delta=0, scale_delta_delta=1,
+
+                             exclude_augmentation=False,
+                             augmentation_folder="augmentation",
+
+                             print_info=True):
+    ################# CHECK PARAMETERS #################################################################################
+
+    # check that either percentages are set or number of samples
+    assert (training_percentage is None) + (training_samples is None) == 1, \
+        "One and only one among training percentage and training samples must be set!"
+    assert (validation_percentage is None) + (validation_samples is None) == 1, \
+        "One and only one among validation percentage and validation samples must be set!"
+    assert (test_percentage is None) + (test_samples is None) == 1, \
+        "One and only one among test percentage and test samples must be set!"
+
+    # check split percentages are set correctly
+    if (training_percentage is not None) + (validation_percentage is not None) + (test_percentage is not None) == 3:
+        assert training_percentage >= 0 and validation_percentage >= 0 and test_percentage >= 0, \
+            "Split percentages must be positive!"
+
+        assert training_percentage + validation_percentage + test_percentage <= 1, \
+            "Split percentages sum can't be greater then 1!"
+
+    elif (training_percentage is not None) + (validation_percentage is not None) == 2:
+        assert training_percentage >= 0 and validation_percentage >= 0, "Split percentages must be positive!"
+        assert training_percentage + validation_percentage <= 1, "Split percentages sum is greater then 1!"
+
+    elif (training_percentage is not None) + (test_percentage is not None) == 2:
+        assert training_percentage >= 0 and test_percentage >= 0, "Split percentages must be positive!"
+        assert training_percentage + test_percentage <= 1, "Split percentages sum is greater then 1!"
+
+    else:
+        assert (validation_percentage >= 0) and (test_percentage >= 0), "Split percentages must be positive!"
+        assert validation_percentage + test_percentage <= 1, "Split percentages sum is greater then 1!"
+
+    if print_info:
+        print("Parameters check completed, the creation of the dataset is starting...")
+
+    ################ SET CLASSES #######################################################################################
+
+    if print_info:
+        print("Analyzing classes and files...")
+
+    # if class_names is set to None all classes are used
+    if class_names is None:
+        path, class_names, files = os.walk(input_path).__next__()
+
+    class_paths = sorted([input_path + cn + "/" for cn in class_names])
+
+    # get number of classes
+    number_of_classes = len(class_paths)
+
+    # composition of the dataset
     composition = []
 
+    if print_info:
+        print("\n####################### CLASS INFOS #################################\n")
+        print("Class#____Class Name____Training____Validation______Test_________Total")
+
     for c in range(number_of_classes):
-        files = get_all_files(classes[c])
+
+        if not exclude_augmentation:
+            augmentation_folder = None
+
+        files = get_all_files(class_paths[c], exclude_directory_name=augmentation_folder)
 
         # number of files in class c
-        nFiles = len(files)
+        number_of_files = len(files)
 
-        test_size = n_samples_test
-        validation_size = int((1 - training_percentage) * (nFiles - test_size))
-        training_size = nFiles - test_size - validation_size
+        # number of files in the 3 sets
 
+        training_size = training_samples
+        validation_size = validation_samples
+        test_size = test_samples
+
+        # set sizes to 0 if they are specified in percentages
+        if training_size is None:
+            training_size = 0
+        if validation_size is None:
+            validation_size = 0
+        if test_size is None:
+            test_size = 0
+
+        available_size = number_of_files - training_size - validation_size - test_size
+
+        if training_samples is None:
+            training_size = int(math.floor(available_size * training_percentage))
+        if validation_samples is None:
+            validation_size = int(math.floor(available_size * validation_percentage))
+        if test_samples is None:
+            test_size = int(math.floor(available_size * test_percentage))
+
+        assert training_size + validation_size + test_size <= number_of_files, \
+            "In class number " + str(c) + " the training size + validation size + test_size selected are greater then " \
+                                          "available files..."
+
+        if print_info:
+            print("  " + ("0" + str(c))[-2:] + "  " + "    " +
+                  (class_names[c] + "       ")[0:10] + "    " +
+                  "  " + ("00000" + str(training_size))[-5:] + "      " +
+                  "  " + ("00000" + str(validation_size))[-5:] + "      " +
+                  "  " + ("00000" + str(test_size))[-5:] + "      " +
+                  "  " + ("00000" + str(training_size + validation_size + test_size))[-5:])
+
+        # append to composition
         composition.append([training_size, validation_size, test_size])
 
+    # transform composition into a numpy array
     composition = np.array(composition)
 
-    # number of all files in the dataset (just to estimate processing time)
-    number_of_all_files = get_number_of_files(input_path)
-
-    test_size = sum(composition[:, 2])
-    validation_size = sum(composition[:, 1])
+    # number of files in the 3 sets and total number of files
     training_size = sum(composition[:, 0])
+    validation_size = sum(composition[:, 1])
+    test_size = sum(composition[:, 2])
+    total_size = training_size + validation_size + test_size
+
+    if print_info:
+        print("\n###################### DATASET INFOS ################################\n")
+        print("Training set has " + str(training_size) + " samples.")
+        print("Validation set has " + str(validation_size) + " samples.")
+        print("Test set has " + str(test_size) + " samples.")
+        print("The dataset in total has " + str(total_size) + " samples.")
+        print("\n#####################################################################\n")
+
+    ##################### ALLOCATE MEMORY FOR DATASET ##################################################################
+
+    # the shape of a feature image
+    feature_shape = (target_frame_number, number_of_filters, 1)
+
+    if add_delta:
+        feature_shape = (target_frame_number, number_of_filters, 3)
 
     # initialize empty dataset
-    training = np.empty((training_size,)+sample_shape)
-    validation = np.empty((validation_size,)+sample_shape)
-    test = np.empty((test_size,)+sample_shape)
+    training_x = np.empty((training_size,) + feature_shape)
+    validation_x = np.empty((validation_size,) + feature_shape)
+    test_x = np.empty((test_size,) + feature_shape)
 
-    training_l = np.empty(training_size, dtype=int)
-    validation_l = np.empty(validation_size, dtype=int)
-    test_l = np.empty(test_size, dtype=int)
+    training_y = np.empty(training_size, dtype=int)
+    validation_y = np.empty(validation_size, dtype=int)
+    test_y = np.empty(test_size, dtype=int)
 
+
+    ############# STARTING EFFECTIVE CREATION OF DATASET ###############################################################
+
+    # permutations to make the order of the three sets pseudo-random
     training_permutation = np.random.permutation(training_size)
     validation_permutation = np.random.permutation(validation_size)
     test_permutation = np.random.permutation(test_size)
 
-    # number of files already processed (just to estimate processing time)
+    # tmp indices to iterate over the sets
+    i_tr = 0
+    i_va = 0
+    i_te = 0
+
+    # number of files already processed
     files_processed = 0
 
     # current percentage of the process
     percentage = 0
 
-    # tmp indices to iterate over the sets
-    training_index = 0
-    validation_index = 0
-    test_index = 0
-
-    if printInfo:
-        print("Starting creation of dataset...")
+    if print_info:
         print("Dataset creation is " + str(int(percentage)) + "% completed")
 
     # for every class
     for c in range(number_of_classes):
-        files = get_all_files(classes[c])
 
-        nFiles = len(files)
+        if not exclude_augmentation:
+            augmentation_folder = None
 
-        p = np.random.permutation(nFiles)
+        # all available file paths for class c
+        files = get_all_files(class_paths[c], exclude_directory_name=augmentation_folder)
 
-        nTrain = composition[c, 0]
-        nVal = composition[c, 1]
-        nTest = composition[c, 2]
+        # number of available files for class c
+        number_of_files_available = len(files)
 
-        max_static = None
-        min_static = None
-        max_delta = None
-        min_delta = None
-        max_delta_delta = None
-        min_delta_delta = None
+        # number of files for each set for class c
+        n_tr = composition[c, 0]
+        n_va = composition[c, 1]
+        n_te = composition[c, 2]
 
-        for i in range(nFiles):
-            fs, data = wavfile.read(files[p[i]])
+        # total number of files needed for class c
+        number_of_files_needed = n_tr + n_va + n_te
 
-            if len(data) < 16000:
-                data = np.pad(data, (0, 16000-len(data)), mode="constant")
-            elif len(data) > 16000:
-                data = data[0:16000]
+        assert number_of_files_available >= number_of_files_needed, \
+            "For class number " + str(c) + "we have less files then needed!"
 
-            features = f.get_features(data, fs, window_function=np.hamming, number_of_filters=number_of_filters, useDCT=useDCT, frame_duration=frame_duration, frame_step=frame_step, addDelta=addDelta)
+        # permutation to divide randomly the files of this class in the three sets
+        p = np.random.permutation(number_of_files_available)
 
-            if normalize:
+        # fill the dataset with features taken from files
+        for i in range(number_of_files_needed):
 
-                if max_static is None:
+            # read a random file (with no repetition) among the available in class c
+            fs, signal = wavfile.read(files[p[i]])
 
-                    if addDelta:
-                        max_static = np.max(features[:, :, 0])
-                        min_static = np.min(features[:, :, 0])
-                        max_delta = np.max(features[:, :, 1])
-                        min_delta = np.min(features[:, :, 1])
-                        max_delta_delta = np.max(features[:, :, 2])
-                        min_delta_delta = np.min(features[:, :, 2])
-                    else :
-                        max_static = np.max(features)
-                        min_static = np.min(features)
+            # get features from current file
+            features = f.get_time_padded_features(signal, sample_rate=fs,
+                                                  # PADDING
+                                                  target_frame_number=target_frame_number,
+                                                  random_time_shift=random_time_shift,
+                                                  smooth=smooth,
+                                                  smooth_length=smooth_length,
 
-                else:
+                                                  pre_emphasis_coef=pre_emphasis_coef,
+                                                  # FRAMING PARAMETERS
+                                                  frame_length=frame_length,
+                                                  frame_step=frame_step,
+                                                  window_function=window_function,
 
-                    if addDelta:
-                        max_static = np.max([np.max(features[:, :, 0]), max_static])
-                        min_static = np.min([np.min(features[:, :, 0]), min_static])
-                        max_delta = np.max([np.max(features[:, :, 1]), max_delta])
-                        min_delta = np.min([np.min(features[:, :, 1]), min_delta])
-                        max_delta_delta = np.max([np.max(features[:, :, 2]), max_delta_delta])
-                        min_delta_delta = np.min([np.min(features[:, :, 2]), min_delta_delta])
-                    else:
-                        max_static = np.max([np.max(features), max_static])
-                        min_static = np.min([np.min(features), min_static])
+                                                  # MEL FILTERS PARAMETERS
+                                                  hertz_from=hertz_from,
+                                                  hertz_to=hertz_to,
+                                                  number_of_filters=number_of_filters,
 
-            if i < nTrain:
-                training[training_permutation[training_index], ] = features
-                training_l[training_permutation[training_index]] = c
-                training_index = training_index+1
-            elif i < nTrain + nVal:
-                validation[validation_permutation[validation_index], ] = features
-                validation_l[validation_permutation[validation_index]] = c
-                validation_index = validation_index+1
+                                                  # FFT PARAMETERS
+                                                  power_of_2=power_of_2,
+
+                                                  # OUTPUT SETTINGS
+                                                  dtype=dtype,
+                                                  use_dct=use_dct,
+                                                  add_delta=add_delta,
+
+                                                  # NORMALIZATION
+                                                  shift_static=shift_static,
+                                                  scale_static=scale_static,
+                                                  shift_delta=shift_delta,
+                                                  scale_delta=scale_delta,
+                                                  shift_delta_delta=shift_delta_delta,
+                                                  scale_delta_delta=scale_delta_delta)
+
+            # add the first n_tr files (chosen randomly) in the training set (in a random position)
+            if i < n_tr:
+                training_x[training_permutation[i_tr], ] = features
+                training_y[training_permutation[i_tr]] = c
+                i_tr = i_tr + 1
+            # add  n_va files (chosen randomly) in the validation set (in a random position)
+            elif i < n_tr + n_va:
+                validation_x[validation_permutation[i_va],] = features
+                validation_y[validation_permutation[i_va]] = c
+                i_va = i_va + 1
+            # add  n_te files (chosen randomly) in the test set (in a random position)
             else:
-                test[test_permutation[test_index], ] = features
-                test_l[test_permutation[test_index]] = c
-                test_index = test_index+1
+                test_x[test_permutation[i_te], ] = features
+                test_y[test_permutation[i_te]] = c
+                i_te = i_te + 1
 
             # increase counter of files processed
             files_processed = files_processed + 1
 
-            if int(files_processed*100/number_of_all_files) > percentage and printInfo:
-                percentage = int(files_processed*100/number_of_all_files)
+            if int(files_processed * 100 / total_size) > percentage and print_info:
+                percentage = int(files_processed * 100 / total_size)
                 print("Dataset creation is " + str(int(percentage)) + "% completed")
 
-    # end for
-    if normalize:
-        print("NORMALIZING....")
-        if addDelta:
-            training = normalize_data(training, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
-            validation = normalize_data(validation, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
-            test = normalize_data(test, 3, [max_static, max_delta, max_delta_delta], [min_static, min_delta, min_delta_delta])
-        else:
-            training = normalize_data(training, 1, max_static, min_static)
-            validation = normalize_data(validation, 1, max_static, min_static)
-            test = normalize_data(test, 1, max_static, min_static)
 
-    if printInfo:
-        print(get_dataset_info(input_path))
+    return training_x, validation_x, test_x, training_y, validation_y, test_y
 
 
-    return training, validation, test, training_l, validation_l, test_l
-
-
-def normalize_data(set, channels, max, min):
-
-    if channels == 1:
-        return (set-min)/(max-min)
-    elif channels == 3:
-        set[:, :, :, 0] = (set[:, :, :, 0] - min[0]) / (max[0] - min[0])
-        set[:, :, :, 1] = (set[:, :, :, 1] - min[1]) / (max[1] - min[1])
-        set[:, :, :, 2] = (set[:, :, :, 2] - min[2]) / (max[2] - min[2])
-        return set
-
-def get_class_dirs(input_path):
-    """From the dataset input path it finds the path of all class folders
-    :param input_path: directory path of the dataset.
+def delete_files_from_folder(input_path):
+    """Delete all files in the specified directory.
+    :param input_path: the path of the directory.
     """
-
-    path, dirs, files = os.walk(input_path).__next__()
-
-    for i in range(len(dirs)):
-        dirs[i] = input_path + dirs[i] + "/"
-
-    return sorted(dirs)
-
-
-def get_number_of_files(input_path):
-    """Count the number of files in dir_path directory and in all subdirectories
-        :param input_path: the path of the directory
-        :return: the number of files in dir_path and in its subdirectories
-        """
-    return sum([len(files) for path, dirs, files in os.walk(input_path)])
+    for the_file in os.listdir(input_path):
+        file_path = os.path.join(input_path, the_file)
+        try:
+            if os.path.isfile(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            print(e)
 
 
-def get_dataset_info(input_path):
-    """Get info about the classes and files distribution in the dataser
-           :param input_path: the path of the directory
-           :return: a info string
-           """
-    classes = get_class_dirs(input_path)
-
-    number_of_classes = len(classes)
-    number_of_files = get_number_of_files(input_path)
-
-    info = "In the dataset there are " + str(number_of_files) + " files divided in " + str(number_of_classes) + " classes \n"
-
-    for i in range(len(classes)):
-        info = info + "Class " + str(i) + " has " + str(get_number_of_files(classes[i])) + " samples. \n"
-
-    return info
-
-
-def get_all_files(input_path):
+def get_all_files(input_path, exclude_directory_name=None):
     """Starting from the directory dir_path it writes into a list all the paths of all the files inside dir_path or
     inside one subdirectory.
-    :param input_path: the path of the directory
+    :param input_path: the path of the directory.
+    :param exclude_directory_name: name of a directory to exclude in the search.
     :return: a list of paths (one for each file in dir_path or one of its subdirectories)
     """
 
@@ -348,6 +445,9 @@ def get_all_files(input_path):
         current_dir = directories.pop()
 
         path, dirs, files = os.walk(current_dir).__next__()
+
+        if exclude_directory_name is not None and exclude_directory_name in dirs:
+            dirs.remove(exclude_directory_name)
 
         for i in range(len(dirs)):
             dirs[i] = current_dir + dirs[i] + "/"
@@ -361,98 +461,34 @@ def get_all_files(input_path):
         if len(dirs) > 0:
             directories.extend(dirs)
 
-    return files_list 
+    return files_list
 
-
-def split_dataset(dataset, n_samples_test, training_percentage):
-    """Divide the dataset into training, validation and test set
-     :param dataset: a numpy array representing the dataset.
-     :param n_samples_test: the number of samples, for each class, in the test set.
-     :param training_percentage: percentage of remaining samples in the training set
-     :return: the three sets randomly permuted with corresponding three array of labels
-     """
-
-    assert 0 < training_percentage and  training_percentage < 1
-
-    # assert that there are enough samples for every class
-    for i in range(dataset.shape[0]):
-        assert len(dataset[i]) > n_samples_test
-
-    training = []
-    validation = []
-    test = []
-    labels_training = []
-    labels_validation = []
-    labels_test = []
-
-    # for every class
-    for i in range(dataset.shape[0]):
-        # number of samples present in class i
-        n_samples = len(dataset[i])#.shape[0]
-
-        n_samples_val = int((n_samples - n_samples_test)*(1-training_percentage))
-        n_samples_train = n_samples-n_samples_val-n_samples_test
-
-        p = np.random.permutation(list(range(n_samples)))
-
-        train_indices = p[0:n_samples_train]
-        val_indices = p[n_samples_train: n_samples_train+n_samples_val]
-        test_indices = p[n_samples_train+n_samples_val:]
-
-        # if different classes have different number of samples, then dataset[i] is a simple list
-        # and we need to put it inside a numpy array
-        current = np.array(dataset[i])
-
-        training.extend(current[train_indices])
-        validation.extend(current[val_indices])
-        test.extend(current[test_indices])
-
-        labels_training.extend([i for j in range(n_samples_train)])
-        labels_validation.extend([i for j in range(n_samples_val)])
-        labels_test.extend([i for j in range(n_samples_test)])
-        
-
-
-    training, validation, test = np.array(training), np.array(validation), np.array(test)
-    # training = np.stack( training, axis=0)
-    # validation = np.stack(validation, axis=0)
-    # test = np.stack(test, axis=0)
-
-
-    labels_training, labels_validation, labels_test = np.array(labels_training), np.array(labels_validation),\
-                                                      np.array(labels_test)
-    
-    # labels_training = np.stack(labels_training, axis=0)
-    # labels_validation = np.stack(labels_validation, axis=0)
-    # labels_test = np.stack(labels_test, axis=0)
-
-    training, labels_training = shuffle_dataset(training, labels_training)
-    validation, labels_validation = shuffle_dataset(validation, labels_validation)
-    test, labels_test = shuffle_dataset(test, labels_test)
-
-    return training, validation, test, labels_training, labels_validation, labels_test
-
-#NOT USED....
-# def complementary_indices(indices, number_of_indices, min_index=0):
-#     """Computes the list of all indices between min and maz that are not present in indices
-#     :param indices: a list of indices.
-#     :param number_of_indices: the number of indices (the number of origianl indices + number of complementary indices).
-#     :param min_index: the minumum index.
-#     :return: a list of indices (complementary to indices list)
-#     """
+# def pad_signal_with_noise(signal, noise, samples_before, samples_after, overlapping_before, overlapping_after,
+#                           intensity):
+#     noise_before = noise[0:samples_before]
+#     noise_before_overlap = noise[samples_before:samples_before + overlapping_before]
+#     noise_after_overlap = noise[-(samples_after + overlapping_after):-samples_after]
+#     noise_after = noise[-samples_after:]
 #
-#     comp = set(range(min_index,min_index+number_of_indices))
-#     indices = set(indices)
+#     print(len(noise_before))
+#     print(len(noise_before_overlap))
+#     print(len(noise_after_overlap))
+#     print(len(noise_after))
+#     # apply ramp from 0 to intensity level
 #
-#     return list(comp-indices)
-
-
-def shuffle_dataset(dataset, labels):
-    """Shuffle the dataset and labels numpy array with the same permutation
-    :param dataset: first array to permute.
-    :param labels: second array to permute.
-    :return: the two array randomly permuted (but in the same way)
-    """
-    p = np.random.permutation(len(labels))
-    return dataset[p], labels[p]
-
+#     noise_before = [noise_before[i] * (intensity * i / samples_before) for i in range(samples_before)]
+#     noise_before_overlap = [noise_before_overlap[i] * (intensity * (1 - i / overlapping_before)) for i in
+#                             range(overlapping_before)]
+#     noise_after_overlap = [noise_after_overlap[i] * (intensity * i / overlapping_after) for i in
+#                            range(overlapping_after)]
+#     noise_after = [noise_after[i] * (intensity * (1 - i / samples_after)) for i in
+#                    range(samples_after)]
+#     signal_ = np.copy(signal)
+#     signal_[0:overlapping_before] = [noise_before_overlap[i] + (signal[i] * i / overlapping_before) for i in
+#                                     range(overlapping_before)]
+#     signal_[-overlapping_after:] = [noise_after_overlap[i] + signal[i] * (1 - i / overlapping_after) for i in
+#                                   range(overlapping_after)]
+#
+#     print("sign_length ", len(signal_))
+#     signal_ = np.array(signal_)
+#     return np.concatenate((noise_before, signal_, noise_after), axis=0)
