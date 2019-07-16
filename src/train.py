@@ -218,8 +218,8 @@ if __name__ == "__main__":
     callbacks = [checkpoint]
     
     # earlystopping
-    earlystopping = EarlyStopping(monitor='val_acc', min_delta=0, patience=0, verbose=0, mode='auto', baseline=None, restore_best_weights=False)
-    callbacks.append(earlystopping)
+    # earlystopping = EarlyStopping(monitor='val_acc', min_delta=0, patience=0, verbose=0, mode='auto', baseline=None, restore_best_weights=False)
+    # callbacks.append(earlystopping)
 
     history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, validation_data=(X_val, Y_val), callbacks=callbacks)
 
