@@ -118,12 +118,8 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
         an instance of the model created
     """
 
-    dropout_prob = params['dropout_prob']
-
     # input shape: (batch_size, time, freq, channels)
     X_input = Input(input_shape)
-
-    # X = ZeroPadding2D((0, 4))(X_input)
 
     # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
     X = Conv2D(64, (20, 8), strides=(1,1), name='conv0')(X_input)

@@ -21,8 +21,7 @@ def get_args():
 
     # Dataset arguments
     parser.add_argument('--datasetpath',            type=str,       default='data/',            help='Path of the dataset')
-    parser.add_argument('--class_test_samples',     type=int,       default=50,                help='Number of test samples per each class')
-    parser.add_argument('--classes',                type=int,       default=None,                help='Number of classes used')
+    parser.add_argument('--class_test_samples',     type=int,       default=200,                help='Number of test samples per each class')
     parser.add_argument('--training_percentage',    type=float,     default=0.7,                help='Percentage of the dataset used for training')
 
     # noise samples creation
@@ -30,6 +29,26 @@ def get_args():
     parser.add_argument('--noise_output_path',      type=str,       default='data/26 silence/', help='Number of test samples per each class')
     parser.add_argument('--noise_samples',          type=int,       default=5000,               help='Number of noise samples to create')
     parser.add_argument('--seed',                   type=int,       default=30,                 help='Seed used for training set creation')
+
+    # features extraction
+    parser.add_argument('--pre_emphasis_coef',      type=float,     default=0.95,                help='Percentage of the dataset used for training')
+    parser.add_argument('--frame_length',           type=int,       default=400,                 help='Seed used for training set creation')
+    parser.add_argument('--frame_step',             type=int,       default=160,                 help='Seed used for training set creation')
+    parser.add_argument('--target_frame_number',    type=int,       default=110,                 help='Seed used for training set creation')
+    parser.add_argument('--random_time_shift',      type=bool,      default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--smooth',                 type=bool,      default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--smooth_length',          type=int,       default=5,                 help='Seed used for training set creation')
+
+    # MEL Coeffs
+    parser.add_argument('--hertz_from',         type=int,           default=300,                 help='Seed used for training set creation')
+    parser.add_argument('--number_of_filters',  type=int,           default=40,                 help='Seed used for training set creation')
+    parser.add_argument('--power_of_2',         type=bool,          default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--use_dct',            type=bool,          default=False,                 help='Seed used for training set creation')
+    parser.add_argument('--add_delta',          type=bool,          default=True,                 help='Seed used for training set creation')
+
+    # augmentation
+    parser.add_argument('--exclude_augmentation',          type=bool,       default=False,                 help='Seed used for training set creation')
+    parser.add_argument('--augmentation_folder',   type=str,        default='augmentation',                 help='Seed used for training set creation')
 
     # Network arguments
     parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',      help="Architecture of the model to use")
@@ -96,15 +115,80 @@ if __name__ == "__main__":
     #         return self._data
         
     # loading the dataset
-    input_path_data = args.datasetpath
+    input_path = args.datasetpath
     test_samples_per_class = args.class_test_samples
     training_percentage = args.training_percentage
     num_classes = args.classes
 
+    # full dataset parameters
+    mean_static = 5.894829478708612
+    mean_delta = 0.011219158052764553
+    mean_delta2 = -0.0011225424307293912
+    std_static = 6.498562130522682
+    std_delta = 0.6461172437961028
+    std_delta2 = 0.24652535283769192
+    max_static = 25.442123413085938
+    min_static = -36.04365158081055
+    max_delta = 16.69818878173828
+    min_delta = -15.686269760131836
+    max_delta2 = 9.076530456542969
+    min_delta2 = -8.840045928955078
 
-    # u.get_samples_from_noise(args.noise_source_path, args.noise_output_path, nOutput=args.noise_samples, seed=args.seed)
-    X_train, X_val, X_test, Y_train, Y_val, Y_test = u.create_dataset_and_split(input_path_data, test_samples_per_class, \
-        training_percentage, (frames, coeffs, channels), max_classes=num_classes, addDelta=True)
+    # for normalization
+    shift_static = -min_static
+    scale_static = 1 / (max_static - min_static)
+    shift_delta = -min_delta
+    scale_delta = 1 / (max_delta - min_delta)
+    shift_delta_delta = -min_delta2
+    scale_delta_delta = 1 / (max_delta2 - min_delta2)
+
+    # class_names = ['00 zero' '01 one','02 two','03 three','04 four','05 five','06 six',\
+    #         '07 seven','08 eight','09 nine','10 go','11 yes','12 no','13 on','14 off','15 forward',\
+    #         '16 backward','17 left','18 right','19 up','20 down','21 stop','22 visual','23 follow',\
+    #         '24 learn','26 unknown','25 silence']
+
+    class_names = ['00 zero' '01 one']
+
+    X_train, X_val, X_test, Y_train, Y_val, Y_test = \
+    u.create_dataset_and_split(input_path,
+                               class_names=class_names,
+                               training_percentage=training_percentage,
+                               validation_percentage=1-training_percentage,
+                               test_percentage=None,
+                               training_samples=None,
+                               validation_samples=None,
+                               test_samples=test_samples_per_class,
+
+                               pre_emphasis_coef=args.pre_emphasis_coef,
+                               frame_length=args.frame_length,
+                               frame_step=args.frame_step,
+                               window_function=np.hamming,
+                               target_frame_number=args.target_frame_number,
+                               random_time_shift=args.random_time_shift,
+                               smooth=args.smooth,
+                               smooth_length=args.smooth_length,
+
+                               hertz_from=args.hertz_from,
+                               hertz_to=None,
+                               number_of_filters=args.number_of_filters,
+                               power_of_2=args.power_of_2,
+                               dtype='float32',
+                               use_dct=args.use_dct,
+                               add_delta=args.add_delta,
+
+                               # NORMALIZATION
+                               shift_static=shift_static,
+                               scale_static=scale_static,
+                               shift_delta=shift_delta,
+                               scale_delta=scale_delta,
+                               shift_delta_delta=shift_delta_delta,
+                               scale_delta_delta=scale_delta_delta,
+
+                               exclude_augmentation=args.exclude_augmentation,
+                               augmentation_folder=args.augmentation_folder,
+
+                               print_info=True)
+
 
     # passing to one-hot encoded
     Y_train = to_categorical(Y_train, num_classes)

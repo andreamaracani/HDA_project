@@ -1,7 +1,7 @@
 python3 src/train.py \
 --datasetpath="data/" \
 --classes=2 \
---architecture="inception" \
+--architecture="cnn-trad-fpool" \
 --dropout_prob=0.3 \
 --batchsize=64 \
 --ckp_folder="checkpoints/" \
