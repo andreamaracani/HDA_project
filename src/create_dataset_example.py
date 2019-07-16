@@ -45,12 +45,12 @@ class_names = ["00 zero/", "01 one/"]  # set to None to use all classes
 training_x, validation_x, test_x, training_y, validation_y, test_y = \
     u.create_dataset_and_split(input_path,
                                class_names=class_names,
-                               training_percentage=1,
-                               validation_percentage=0.0,
+                               training_percentage=0.7,
+                               validation_percentage=0.3,
                                test_percentage=None,
                                training_samples=None,
                                validation_samples=None,
-                               test_samples=0,
+                               test_samples=200,
 
                                pre_emphasis_coef=0.95,
                                frame_length=400,
