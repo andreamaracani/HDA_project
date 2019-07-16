@@ -45,7 +45,9 @@ def get_args():
     parser.add_argument('--power_of_2',         type=bool,          default=True,                 help='Seed used for training set creation')
     parser.add_argument('--use_dct',            type=bool,          default=False,                 help='Seed used for training set creation')
     parser.add_argument('--add_delta',          type=bool,          default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--normalization_method', type=int,          default=0,                 help='0 no normalization, 1 standardization, 2 normalization')
 
+normalization_method
     # augmentation
     parser.add_argument('--exclude_augmentation',      type=bool,       default=True,                 help='Seed used for training set creation')
     parser.add_argument('--augmentation_folder',       type=str,        default='augmentation',                 help='Seed used for training set creation')
@@ -95,13 +97,37 @@ if __name__ == "__main__":
     max_delta2 = 9.076530456542969
     min_delta2 = -8.840045928955078
 
-    # for normalization
-    shift_static = -min_static
-    scale_static = 1 / (max_static - min_static)
-    shift_delta = -min_delta
-    scale_delta = 1 / (max_delta - min_delta)
-    shift_delta_delta = -min_delta2
-    scale_delta_delta = 1 / (max_delta2 - min_delta2)
+    
+    normalization = args.normalization_method
+
+    if(normalization == 0):
+
+        # no transformation
+        shift_static = 0
+        scale_static = 1
+        shift_delta = 0
+        scale_delta = 1
+        shift_delta_delta = 0
+        scale_delta_delta = 1
+    elif(normalization == 1):
+
+        #standardisation
+        shift_static = -mean_static
+        scale_static = 1/std_static
+        shift_delta = -mean_delta
+        scale_delta = 1/std_delta
+        shift_delta_delta = -mean_delta2
+        scale_delta_delta = 1/std_delta2
+
+    elif (normalization == 2):
+
+        #normalization
+        shift_static = -min_static
+        scale_static = 1 / (max_static - min_static)
+        shift_delta = -min_delta
+        scale_delta = 1 / (max_delta - min_delta)
+        shift_delta_delta = -min_delta2
+        scale_delta_delta = 1 / (max_delta2 - min_delta2)
 
     # class_names = ['00 zero', '01 one','02 two','03 three','04 four','05 five','06 six',\
     #         '07 seven','08 eight','09 nine','10 go','11 yes','12 no','13 on','14 off','15 forward',\
