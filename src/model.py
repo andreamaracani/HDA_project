@@ -3,7 +3,8 @@ import tensorflow as tf
 import os
 import datetime
 from keras import layers
-from keras.layers import Input, Dense, Activation, ZeroPadding2D, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout
+from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, concatenate
+from keras.layers import Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU
 from keras.models import Model, Sequential
 from keras.models import save_model, load_model
 from keras.callbacks import ModelCheckpoint
@@ -33,6 +34,12 @@ class ASRModel(object):
             self.architecture = improved_cnn_trad_fpool3(input_size, out_size, **params)
         elif (architecture == 'sequential-model'):
             self.architecture = sequential_model(input_size, out_size, **params)
+        elif (architecture == 'rnn'):
+            self.architecture = rnn(input_size, out_size, **params)
+        elif (architecture == 'cnn-attention-rnn'):
+            self.architecture = cnn_attention_rnn(input_size, out_size, **params)
+        elif (architecture == 'inception'):
+            self.architecture = inception(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
         
@@ -82,22 +89,14 @@ def toy_model(input_shape, out_size, **params):
     # placeholder for the input
     X_input = Input(input_shape)
 
-    # padding the input
-    X = ZeroPadding2D((3, 3))(X_input)
-
-    # Conv0 layer
-    X = Conv2D(32, (7,7), strides=(1,1), name='conv0')(X)
-    X = BatchNormalization(axis=-1, name='bn0')(X)
-    X = Activation('relu')(X)
-
-    # maxpooling
-    X = MaxPooling2D(pool_size=(2, 2), name='max_pool')(X)
-
     # flattening x
     X = Flatten()(X)
 
     # Fully connected
-    X = Dense(5, activation='softmax', name='softmax-layer')(X)
+    X = Dense(128, activation='softmax', name='softmax-layer')(X)
+
+    X = Dense(out_size, activation='softmax', name='softmax-layer')(X)
+
 
     # return the model instance.
     model = Model(inputs = X_input, outputs = X, name='1-conv-model')
@@ -138,7 +137,6 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
     # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
     X = Conv2D(64, (10, 4), strides=(1, 1), name='conv1')(X)
 
-
     # non-linearity
     X = Activation('relu')(X)
     
@@ -158,6 +156,7 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
 
     # return the model instance
     return model
+
 
 def improved_cnn_trad_fpool3(input_shape, out_size, **params):
 
@@ -199,8 +198,8 @@ def improved_cnn_trad_fpool3(input_shape, out_size, **params):
     X= Dropout(dropout_prob)(X)
 
     # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
-    X = Conv2D(32, (5, 3), strides=(1, 1), name='conv1')(X)
-    X = Conv2D(32, (5, 3), strides=(1, 1), name='conv1b')(X)
+    X = Conv2D(32, (3, 3), strides=(1, 1), name='conv1')(X)
+    X = Conv2D(32, (3, 3), strides=(1, 1), name='conv1b')(X)
 
     # normalizing batch
     X = BatchNormalization(axis=-1)(X)
@@ -211,8 +210,8 @@ def improved_cnn_trad_fpool3(input_shape, out_size, **params):
     X = Dropout(dropout_prob)(X)
 
     # conv2:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
-    X = Conv2D(16, (5, 3), strides=(1, 1), name='conv2')(X)
-    X = Conv2D(16, (5, 3), strides=(1, 1), name='conv2b')(X)
+    X = Conv2D(16, (3, 3), strides=(1, 1), name='conv2')(X)
+    X = Conv2D(16, (3, 3), strides=(1, 1), name='conv2b')(X)
 
     # normalizing batch
     X = BatchNormalization(axis=-1)(X)
@@ -273,55 +272,7 @@ def sequential_model(input_shape, out_size, **params):
     return model
 
 
-def block(input_size, filters, kernel=(3, 3), strides=(1, 1), pooling_size=(1, 1), dropout_prob=0.3):
-    """
-    Implements a convolutional block composed as
-    [Conv] -> [BatchNorm] -> [MaxPool] -> [ReLU]
 
-    Args:
-        input_size: size of the input to the convolutional block
-        output_size: size of the output of the convolutional block
-        kernel: tuple (h, w) indicating the dimension of the 2d-kernel
-        stride: tuple indicating the stride of the convolutional kernel
-        pooling_size: tuple indicating the dimension of the pool
-        dropout_prob: dropout probability after the convolutional block
-
-    Returns:
-        the convolutional block
-    """
-    # placeholder for the input
-    X_input = Input(input_size)
-
-    # checking for padding
-    frame_padding = int(input_size[0]) - kernel[0]
-    coeff_padding = int(input_size[1]) - kernel[1]
-
-    X = ZeroPadding2D((-min(frame_padding, 0), -min(coeff_padding, 0)))(X_input)
-
-    X = Conv2D(filters, kernel_size=kernel, strides=strides)(X)
-
-    X = BatchNormalization(axis=-1)(X)
-
-    #  checking for padding
-    frame_padding = int((int(input_size[1]) - kernel[0] + 1)/strides[0])
-    coeff_padding = int((int(input_size[2]) - kernel[1] + 1)/strides[1])
-    
-    if(frame_padding < 0 or coeff_padding < 0):
-        X = ZeroPadding2D((max(-frame_padding, 0), max(-coeff_padding, 0)))(X)
-
-    X = MaxPooling2D(pooling_size)(X)
-
-    X = Activation('relu')(X)
-
-    # TODO: need to pass the seed
-    X = Dropout(1-dropout_prob, noise_shape=None, seed=None)(X)
-
-    model = Model(inputs=X_input, outputs=X)
-
-    return model
-
-
-def module_model(input_size, out_size,  **params):
 
     """
     Implements a convolutional network as composition of convolutional blocks
@@ -345,13 +296,17 @@ def module_model(input_size, out_size,  **params):
     if(len(filters) != hidden_layers):
         raise Exception('The number of filters must be equal to the number of blocks')
     
+    print(input_size)
     # placeholder for input
     X_input = Input(input_size)
 
     # adding the first convolutional layer
-    X = block(input_size, filters[0], kernel=kernel, strides=stride, pooling_size=pooling_size)(X_input)
+    X = block(input_size, filters[0], kernel=(3, 3), strides=stride, pooling_size=pooling_size)(X_input)
     input_size = X.shape[1:]
+    # print(X.shape)
     for layer in range(hidden_layers-1):
+        print('ciao')
+        print(input_size)
         X = block(input_size, filters[layer+1], kernel=kernel, strides=stride, pooling_size=pooling_size, dropout_prob=dropout_prob)(X)
         input_size = X.shape[1:]
     # flatten the filters
@@ -370,6 +325,181 @@ def module_model(input_size, out_size,  **params):
 
     return model
 
+
+def block(input_size, filters, kernel=(3, 3), strides=(1, 1), pooling_size=(1, 1), dropout_prob=0.3):
+    """
+    Implements a convolutional block composed as
+    [Conv] -> [BatchNorm] -> [MaxPool] -> [ReLU]
+    Args:
+        input_size: size of the input to the convolutional block
+        output_size: size of the output of the convolutional block
+        kernel: tuple (h, w) indicating the dimension of the 2d-kernel
+        stride: tuple indicating the stride of the convolutional kernel
+        pooling_size: tuple indicating the dimension of the pool
+        dropout_prob: dropout probability after the convolutional block
+    Returns:
+        the convolutional block
+    """
+    # placeholder for the input
+    X_input = Input(input_size)
+    print(input_size)
+    print(X_input.shape)
+
+    X = Conv2D(filters, kernel_size=kernel, padding ='same', strides=strides)(X_input)
+    
+    X = BatchNormalization(axis=-1)(X)
+
+    X = MaxPooling2D(pooling_size)(X)
+
+    X = Activation('relu')(X)
+
+    # TODO: need to pass the seed
+    X = Dropout(1-dropout_prob, noise_shape=None, seed=None)(X)
+
+    model = Model(inputs=X_input, outputs=X)
+
+    return model
+
+def module_model(input_size, out_size, **params):
+
+    """
+    Implements a convolutional network as composition of convolutional blocks
+    Args:
+        input_shape: size of the input to the network
+        params: dictionary of parameters that defines the structure
+    Returns:
+        the convolutional block
+    """
+
+    # retrieving the params
+    pooling_size = params['pooling_size']
+    stride = params['stride']
+    kernel = params['kernel']
+    filters = params['filters']
+    hidden_layers = params['hidden_layers']
+    dropout_prob = params['dropout_prob']
+
+    if(len(filters) != hidden_layers):
+        raise Exception('The number of filters must be equal to the number of blocks')
+
+    # placeholder for input
+    X_input = Input(input_size)
+    print(input_size)
+    # adding the first convolutional layer
+    X = block(input_size, filters[0], kernel=kernel, strides=stride, pooling_size=pooling_size)(X_input)
+    input_size = X.shape[1:]
+    for layer in range(hidden_layers-1):
+        X = block(input_size, filters[layer+1], kernel=kernel, strides=stride, pooling_size=pooling_size, dropout_prob=dropout_prob)(X)
+        input_size = X.shape[1:]
+    # flatten the filters
+    X = Flatten()(X)
+
+    # linear: linear layer with 32 units
+    X = Dense(64, activation='linear', name='linear')(X)
+
+    # relu: fully connected layer with 128 relu activation units
+    X = Dense(128, activation='relu', name='relu')(X)
+
+    # softmax: softmax layer
+    X = Dense(4, activation='softmax', name='softmax')(X)
+
+    model = Model(inputs=X_input, outputs=X)
+
+    return model
+
+def rnn(input_size, out_size, **params):
+
+    X_input = Input(input_size)
+
+    # can't feed 4 dim data, let's reshape the input
+    X = Reshape((input_size[0], input_size[1]*input_size[2]))(X_input)
+
+    X = GRU(128, return_sequences=True, name='rnn1')(X)
+    X = GRU(256, return_sequences=False, name='rnn2')(X)
+    X = Dense(out_size, activation='softmax')(X)
+
+    model = Model(inputs=X_input, outputs=X)
+
+    return model
+
+def attention_3d_block(input_size, inputs):
+    # inputs.shape = (batch_size, time_steps, input_dim)
+    input_dim = int(inputs.shape[2])
+    a = Permute((2, 1))(inputs)
+    print(a.shape)
+    # a = Reshape((input_dim, input_size[0]))(a) # this line is not useful. It's just to know which dimension is what.
+    # a = Dense(input_size[0], activation='softmax')(a)
+
+    e = LSTM(64, name='embedding-lstm', return_sequences=True)(a)
+    e = Dense(input_size[0], activation='softmax')(e)
+
+
+    a_probs = Permute((2, 1), name='attention_vec')(e)
+    output_attention_mul = Multiply()([inputs, a_probs])
+    return output_attention_mul
+
+def cnn_attention_rnn(input_size, out_size, **params):
+
+    dropout_prob = params['dropout_prob']
+    X_input = Input(input_size)
+
+    X = BatchNormalization(axis=-1)(X_input)
+    # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
+    X = Conv2D(64, (5, 3), strides=(1, 1), padding='same', name='conv0')(X)
+    X=  Conv2D(64, (3, 3), strides=(1, 1), padding='same', name='conv0b')(X)
+    X = BatchNormalization(axis=-1)(X)
+    X = Activation('relu')(X)
+    X = MaxPooling2D((1, 3), name='maxpool0')(X)
+    X= Dropout(dropout_prob)(X)
+
+    # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
+    X = Conv2D(16, (3, 3), strides=(1, 1), padding='same', name='conv1')(X)
+    X = Conv2D(32, (3, 3), strides=(1, 1), padding='same', name='conv1b')(X)
+    X = BatchNormalization(axis=-1)(X)
+    X = Activation('relu')(X)
+    X = MaxPooling2D((1, 3), name='maxpool1')(X)
+    X= Dropout(dropout_prob)(X)
+
+
+    # attentiont mechanism
+    shape = (input_size[0], 4 * 32)
+    X = Reshape((shape[0], shape[1]))(X)
+    print(X.shape)
+    attention_mul = attention_3d_block(shape, X)
+    
+    # recurrent layer 
+    lstm_units = 128
+    attention_mul = LSTM(lstm_units, name='rnn', return_sequences=False)(attention_mul)
+    output = Dense(out_size, activation='softmax')(attention_mul)
+    model = Model(input=X_input, output=output)
+    return model
+
+
+def inception(input_size, out_size, **params):
+
+    X_input = Input(input_size)
+
+    X = Conv2D(16, (1, 1), strides=(1,1))(X_input)
+    X = Conv2D(16, (1, 3), strides=(1,1))(X)
+    X = Conv2D(16, (3, 1), strides=(1,1))(X)
+    X = Conv2D(32, (1, 3), strides=(1,1), padding='same')(X)
+    X = Conv2D(32, (3, 1), strides=(1,1), padding='same')(X)
+
+    Y = Conv2D(16, (1, 1), strides=(1,1))(X_input)
+    Y = Conv2D(16, (1, 3), strides=(1,1))(Y)
+    Y = Conv2D(16, (3, 1), strides=(1,1))(Y)
+
+    Z = Conv2D(16, (1, 1), strides=(1,1))(X_input)
+
+    W = MaxPooling2D((3,3), padding='same')(X_input)
+    W = Conv2D(16, (1, 1), strides=(1,1))(W)
+
+    output = concatenate([X, Y, W], axis=-1)
+
+    model = Model(inputs=X_input, output=output)
+
+    return model
+   
 # test of functionalities
 if __name__ == "__main__":
 
@@ -413,7 +543,7 @@ if __name__ == "__main__":
     print ("Loss = " + str(preds[0]))
     print ("Test Accuracy = " + str(preds[1]))
 
-    cnn_model = load('models/' + str(date))
+    # cnn_model = load('models/' + str(date))
     
     # print the summary of the layers(parameters)
     cnn_model.summary()
