@@ -2,7 +2,7 @@ import argparse
 import tensorflow as tf
 import util as u
 from model import ASRModel
-from keras.callbacks import ModelCheckpoint, RemoteMonitor, Callback
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 from keras.utils import to_categorical
 import matplotlib.pyplot as plt
 from pathlib import Path
@@ -47,8 +47,8 @@ def get_args():
     parser.add_argument('--add_delta',          type=bool,          default=True,                 help='Seed used for training set creation')
 
     # augmentation
-    parser.add_argument('--exclude_augmentation',          type=bool,       default=False,                 help='Seed used for training set creation')
-    parser.add_argument('--augmentation_folder',   type=str,        default='augmentation',                 help='Seed used for training set creation')
+    parser.add_argument('--exclude_augmentation',      type=bool,       default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--augmentation_folder',       type=str,        default='augmentation',                 help='Seed used for training set creation')
 
     # Network arguments
     parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',      help="Architecture of the model to use")
@@ -77,48 +77,9 @@ if __name__ == "__main__":
     # Parse input arguments
     args = get_args()
 
-    frames = 97
-    coeffs = 40
-    channels = 3
-
-    pool=tuple(args.pool)
-    stride=tuple(args.stride)
-    kernel=tuple(args.kernel)
-
-    # initialize the network
-    model = ASRModel(architecture=args.architecture, input_size=(frames, coeffs, 3), out_size=args.classes, pooling_size=pool, \
-        stride=stride, kernel=kernel, filters=args.filters, hidden_layers=args.hidden_layers, dropout_prob=args.dropout_prob)
-
-    # setting training
-    model.architecture.compile(optimizer="adam", 
-                                loss="categorical_crossentropy", 
-                                metrics=["accuracy"])
-
-    # class Metrics(Callback):
-
-    #     def on_test_begin(self, logs={}):
-    #         self._data = np.zeros((num_classes, num_classes))
-
-    #     def on_epoch_end(self, batch, logs={}):
-    #         X_val, y_val = self.validation_data[0], self.validation_data[1]
-    #         y_predict = np.asarray(model.architecture.predict(X_val))
-
-    #         y_val = np.argmax(y_val, axis=1)
-    #         y_predict = np.argmax(y_predict, axis=1)
-    #         print(y_val[0], y_predict[0])
-
-    #         for sample in range(self.validation_data[0].shape[0]):
-    #             self._data[y_val[sample], y_predict[sample]] = self._data[y_val[sample], y_predict[sample]] + 1
-    #         return
-
-    #     def get_data(self):
-    #         return self._data
-        
-    # loading the dataset
-    input_path = args.datasetpath
-    test_samples_per_class = args.class_test_samples
-    training_percentage = args.training_percentage
-    num_classes = args.classes
+    # frames = 97
+    # coeffs = 40
+    # channels = 3
 
     # full dataset parameters
     mean_static = 5.894829478708612
@@ -142,22 +103,28 @@ if __name__ == "__main__":
     shift_delta_delta = -min_delta2
     scale_delta_delta = 1 / (max_delta2 - min_delta2)
 
-    # class_names = ['00 zero' '01 one','02 two','03 three','04 four','05 five','06 six',\
+    # class_names = ['00 zero', '01 one','02 two','03 three','04 four','05 five','06 six',\
     #         '07 seven','08 eight','09 nine','10 go','11 yes','12 no','13 on','14 off','15 forward',\
     #         '16 backward','17 left','18 right','19 up','20 down','21 stop','22 visual','23 follow',\
     #         '24 learn','26 unknown','25 silence']
 
-    class_names = ['00 zero' '01 one']
+    class_names = ['00 zero', '01 one']
+    num_classes = len(class_names)
+
+    pool=tuple(args.pool)
+    stride=tuple(args.stride)
+    kernel=tuple(args.kernel)
+
 
     X_train, X_val, X_test, Y_train, Y_val, Y_test = \
-    u.create_dataset_and_split(input_path,
+    u.create_dataset_and_split("data/",
                                class_names=class_names,
-                               training_percentage=training_percentage,
-                               validation_percentage=1-training_percentage,
+                               training_percentage=args.training_percentage,
+                               validation_percentage=1-args.training_percentage,
                                test_percentage=None,
                                training_samples=None,
                                validation_samples=None,
-                               test_samples=test_samples_per_class,
+                               test_samples=args.class_test_samples,
 
                                pre_emphasis_coef=args.pre_emphasis_coef,
                                frame_length=args.frame_length,
@@ -189,6 +156,25 @@ if __name__ == "__main__":
 
                                print_info=True)
 
+    # retrieve input size
+    input_size = X_train.shape[1:]
+
+    # initialize the network
+    model = ASRModel(architecture=args.architecture, 
+                    input_size=input_size, 
+                    out_size=num_classes, 
+                    pooling_size=pool,
+                    stride=stride, 
+                    kernel=kernel, 
+                    filters=args.filters, 
+                    hidden_layers=args.hidden_layers, 
+                    dropout_prob=args.dropout_prob)
+
+    # setting training
+    model.architecture.compile(optimizer="adam", 
+                                loss="categorical_crossentropy", 
+                                metrics=["accuracy"])
+
 
     # passing to one-hot encoded
     Y_train = to_categorical(Y_train, num_classes)
@@ -203,8 +189,12 @@ if __name__ == "__main__":
         os.makedirs(out_dir)
     out_dir = os.path.join(out_dir, 'ckp')
 
-    checkpoint = ModelCheckpoint(out_dir, monitor='val_loss', verbose=0, save_best_only=False, save_weights_only=False, mode='auto', period=10)
+    checkpoint = ModelCheckpoint(out_dir, monitor='val_acc', verbose=0, save_best_only=True, save_weights_only=False, mode='auto', period=1)
     callbacks = [checkpoint]
+    
+    # earlystopping
+    earlystopping = EarlyStopping(monitor='val_acc', min_delta=0, patience=0, verbose=0, mode='auto', baseline=None, restore_best_weights=False)
+    callbacks.append(earlystopping)
 
     history = model.architecture.fit(x = X_train, y = Y_train, epochs=args.num_epochs, batch_size=args.batchsize, validation_data=(X_val, Y_val), callbacks=callbacks)
 
@@ -238,7 +228,7 @@ if __name__ == "__main__":
 
 
     
-    preds = model.architecture.evaluate(x=X_test, y=Y_test, )
+    preds = model.architecture.evaluate(x=X_test, y=Y_test)
 
 
     date = model.save()
