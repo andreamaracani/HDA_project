@@ -31,14 +31,13 @@ def get_args():
     parser.add_argument('--noise_samples',          type=int,       default=5000,               help='Number of noise samples to create')
     parser.add_argument('--seed',                   type=int,       default=30,                 help='Seed used for training set creation')
 
-
     # Network arguments
     parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',      help="Architecture of the model to use")
     parser.add_argument('--filters',        type=int,   default=[128, 64], nargs="+",   help='Number of filters per layer')
     parser.add_argument('--kernel',         type=int,   default=[2, 2], nargs="+",      help='Kernel_size')
     parser.add_argument('--stride',         type=int,   default=[1, 1], nargs="+",      help='Stride of the kernel')
     parser.add_argument('--pool',           type=int,   default=[1,1], nargs="+",       help='Pool size')
-    parser.add_argument('--hidden_layers',  type=int,   default=2,                      help='Number of convolutional stacked layers')
+    parser.add_argument('--hidden_layers',  type=int,   default=2,                      help='Number of convolutional layers stacked')
     parser.add_argument('--dropout_prob',   type=float, default=0.25,                    help='Dropout probability')
 
     # Training argumenrs
