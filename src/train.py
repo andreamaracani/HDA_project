@@ -47,7 +47,6 @@ def get_args():
     parser.add_argument('--add_delta',          type=bool,          default=True,                 help='Seed used for training set creation')
     parser.add_argument('--normalization_method', type=int,          default=0,                 help='0 no normalization, 1 standardization, 2 normalization')
 
-normalization_method
     # augmentation
     parser.add_argument('--exclude_augmentation',      type=bool,       default=True,                 help='Seed used for training set creation')
     parser.add_argument('--augmentation_folder',       type=str,        default='augmentation',                 help='Seed used for training set creation')
@@ -129,12 +128,12 @@ if __name__ == "__main__":
         shift_delta_delta = -min_delta2
         scale_delta_delta = 1 / (max_delta2 - min_delta2)
 
-    # class_names = ['00 zero', '01 one','02 two','03 three','04 four','05 five','06 six',\
-    #         '07 seven','08 eight','09 nine','10 go','11 yes','12 no','13 on','14 off','15 forward',\
-    #         '16 backward','17 left','18 right','19 up','20 down','21 stop','22 visual','23 follow',\
-    #         '24 learn','26 unknown','25 silence']
+    class_names = ['00 zero', '01 one','02 two','03 three','04 four','05 five','06 six',\
+            '07 seven','08 eight','09 nine','10 go','11 yes','12 no','13 on','14 off','15 forward',\
+            '16 backward','17 left','18 right','19 up','20 down','21 stop','22 visual','23 follow',\
+            '24 learn','26 unknown','25 silence']
 
-    class_names = ['00 zero', '01 one']
+    # class_names = ['00 zero', '01 one']
     num_classes = len(class_names)
 
     pool=tuple(args.pool)
