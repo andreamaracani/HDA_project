@@ -438,9 +438,6 @@ def create_dataset(input_path,
 
                 if set_number == 0:
 
-                    if training_permutation[i_tr] == 100:
-                        print(files[i])
-
                     training_x[training_permutation[i_tr], ] = features
                     training_y[training_permutation[i_tr]] = c
                     i_tr = i_tr + 1
