@@ -10,6 +10,11 @@ import os
 import json
 import keras.backend as K
 
+def boolean_string(s):
+    if s not in {'False', 'True'}:
+        raise ValueError('Not a valid boolean string')
+    return s == 'True'
+
 def get_args():
     
     # parse input arguments
@@ -31,25 +36,25 @@ def get_args():
     parser.add_argument('--seed',                   type=int,       default=30,                 help='Seed used for training set creation')
 
     # features extraction
-    parser.add_argument('--pre_emphasis_coef',      type=float,     default=0.95,                help='Percentage of the dataset used for training')
-    parser.add_argument('--frame_length',           type=int,       default=400,                 help='Seed used for training set creation')
-    parser.add_argument('--frame_step',             type=int,       default=160,                 help='Seed used for training set creation')
-    parser.add_argument('--target_frame_number',    type=int,       default=110,                 help='Seed used for training set creation')
-    parser.add_argument('--random_time_shift',      type=bool,      default=True,                 help='Seed used for training set creation')
-    parser.add_argument('--smooth',                 type=bool,      default=True,                 help='Seed used for training set creation')
-    parser.add_argument('--smooth_length',          type=int,       default=5,                 help='Seed used for training set creation')
+    parser.add_argument('--pre_emphasis_coef',      type=float,             default=0.95,                help='Percentage of the dataset used for training')
+    parser.add_argument('--frame_length',           type=int,               default=400,                 help='Seed used for training set creation')
+    parser.add_argument('--frame_step',             type=int,               default=160,                 help='Seed used for training set creation')
+    parser.add_argument('--target_frame_number',    type=int,               default=110,                 help='Seed used for training set creation')
+    parser.add_argument('--random_time_shift',      type=boolean_string,    default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--smooth',                 type=boolean_string,    default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--smooth_length',          type=int,               default=5,                 help='Seed used for training set creation')
 
     # MEL Coeffs
-    parser.add_argument('--hertz_from',         type=int,           default=300,                 help='Seed used for training set creation')
-    parser.add_argument('--number_of_filters',  type=int,           default=40,                 help='Seed used for training set creation')
-    parser.add_argument('--power_of_2',         type=bool,          default=True,                 help='Seed used for training set creation')
-    parser.add_argument('--use_dct',            type=bool,          default=False,                 help='Seed used for training set creation')
-    parser.add_argument('--add_delta',          type=bool,          default=True,                 help='Seed used for training set creation')
-    parser.add_argument('--normalization_method', type=int,          default=0,                 help='0 no normalization, 1 standardization, 2 normalization')
+    parser.add_argument('--hertz_from',         type=int,               default=300,                 help='Seed used for training set creation')
+    parser.add_argument('--number_of_filters',  type=int,               default=40,                 help='Seed used for training set creation')
+    parser.add_argument('--power_of_2',         type=boolean_string,    default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--use_dct',            type=boolean_string,    default=False,                 help='Seed used for training set creation')
+    parser.add_argument('--add_delta',          type=boolean_string,    default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--normalization_method', type=int,             default=0,                 help='0 no normalization, 1 standardization, 2 normalization')
 
     # augmentation
-    parser.add_argument('--exclude_augmentation',      type=bool,       default=True,                 help='Seed used for training set creation')
-    parser.add_argument('--augmentation_folder',       type=str,        default='augmentation',                 help='Seed used for training set creation')
+    parser.add_argument('--exclude_augmentation', type=boolean_string,  default=True,                 help='Seed used for training set creation')
+    parser.add_argument('--augmentation_folder',  type=str,             default='augmentation',                 help='Seed used for training set creation')
 
     # Network arguments
     parser.add_argument('--architecture',   type=str,   default='cnn_trad_fpool3',      help="Architecture of the model to use")
@@ -62,7 +67,7 @@ def get_args():
 
     # Training argumenrs
     parser.add_argument('--batchsize',      type=int,   default=64,                help='Training batch size')
-    parser.add_argument('--num_epochs',     type=int,   default=100,               help='Number of training epochs')
+    parser.add_argument('--num_epochs',     type=int,   default=20,               help='Number of training epochs')
 
     # Save arguments
     parser.add_argument('--ckp_folder',     type=str,   default='models/',    help='Where to save models and params')
@@ -131,7 +136,12 @@ if __name__ == "__main__":
     class_names = ['00 zero', '01 one','02 two','03 three','04 four','05 five','06 six',\
             '07 seven','08 eight','09 nine','10 go','11 yes','12 no','13 on','14 off','15 forward',\
             '16 backward','17 left','18 right','19 up','20 down','21 stop','22 visual','23 follow',\
-            '24 learn','26 unknown','25 silence']
+            '24 learn','25 silence', '26 unknown']
+
+    # class_names = ['10 go','15 forward',\
+    #         '16 backward','17 left','18 right','19 up','20 down','21 stop', '25 silence', '26 unknown']
+
+    print(args.num_epochs)
 
     # class_names = ['00 zero', '01 one']
     num_classes = len(class_names)
