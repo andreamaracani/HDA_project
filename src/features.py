@@ -71,7 +71,7 @@ def get_frame_params(signal_length, frame_length=None, padding=None, frame_step=
         frame_step = int(math.ceil(signal_length / (num_frames - 1))) - 1
     elif num_frames is None and frame_length is not None:
         # num_frames = int(math.ceil(1 - frame_length*percentage + signal_length / frame_step)) - 1
-        num_frames = int(math.ceil(1 + (signal_length - frame_length * percentage) / frame_step)) - 1
+        num_frames = int(round(1 + (signal_length - frame_length * percentage) / frame_step))
     elif num_frames is None:
         num_frames = int(math.ceil(1 + signal_length / frame_step)) - 1
 

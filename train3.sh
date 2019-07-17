@@ -8,3 +8,4 @@ python3 src/train.py \
 --frame_step=500 \
 --target_frame_number=38 \
 --exclude_augmentation=False \
+
