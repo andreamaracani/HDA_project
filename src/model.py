@@ -3,8 +3,8 @@ import tensorflow as tf
 import os
 import datetime
 from keras import layers
-from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, concatenate
-from keras.layers import Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU
+from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, Concatenate
+from keras.layers import Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU, Conv1D, concatenate
 from keras.models import Model, Sequential
 from keras.models import save_model, load_model
 from keras.callbacks import ModelCheckpoint
@@ -40,6 +40,8 @@ class ASRModel(object):
             self.architecture = cnn_attention_rnn(input_size, out_size, **params)
         elif (architecture == 'inception'):
             self.architecture = inception(input_size, out_size, **params)
+        elif (architecture == 'svdf'):
+            self.architecture = svdf(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
         
@@ -118,6 +120,8 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
         an instance of the model created
     """
 
+    dropout_prob = params['dropout_prob']
+
     # input shape: (batch_size, time, freq, channels)
     X_input = Input(input_shape)
 
@@ -130,6 +134,7 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
     # pooling in frequency within a region of t=1, f=3
     X = MaxPooling2D((1, 3), name='maxpool')(X)
 
+    X = Dropout(dropout_prob)(X)
     # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
     X = Conv2D(64, (10, 4), strides=(1, 1), name='conv1')(X)
 
@@ -144,6 +149,8 @@ def cnn_trad_fpool3(input_shape, out_size, **params):
 
     # relu: fully connected layer with 128 relu activation units
     X = Dense(128, activation='relu', kernel_initializer='random_normal', bias_initializer='zeros', name='relu')(X)
+
+    X = Dropout(dropout_prob)(X)
 
     # softmax: softmax layer
     X = Dense(out_size, activation='softmax', kernel_initializer='random_normal', bias_initializer='zeros', name='softmax')(X)
@@ -470,32 +477,87 @@ def cnn_attention_rnn(input_size, out_size, **params):
     model = Model(input=X_input, output=output)
     return model
 
-
 def inception(input_size, out_size, **params):
 
     X_input = Input(input_size)
 
-    X = Conv2D(16, (1, 1), strides=(1,1))(X_input)
-    X = Conv2D(16, (1, 3), strides=(1,1))(X)
-    X = Conv2D(16, (3, 1), strides=(1,1))(X)
-    X = Conv2D(32, (1, 3), strides=(1,1), padding='same')(X)
-    X = Conv2D(32, (3, 1), strides=(1,1), padding='same')(X)
+    X = Conv2D(16, (1, 1), strides=(1,1), activation='relu', padding='same')(X_input)
+    X = Conv2D(16, (1, 3), strides=(1,1), activation='relu', padding='same')(X)
+    X = Conv2D(16, (3, 1), strides=(1,1), activation='relu', padding='same')(X)
+    X = Conv2D(32, (1, 3), strides=(1,1), activation='relu', padding='same')(X)
+    X = Conv2D(32, (3, 1), strides=(1,1), activation='relu', padding='same')(X)
 
-    Y = Conv2D(16, (1, 1), strides=(1,1))(X_input)
-    Y = Conv2D(16, (1, 3), strides=(1,1))(Y)
-    Y = Conv2D(16, (3, 1), strides=(1,1))(Y)
+    Y = Conv2D(16, (1, 1), strides=(1,1), activation='relu' )(X_input)
+    Y = Conv2D(16, (1, 3), strides=(1,1), activation='relu', padding='same')(Y)
+    Y = Conv2D(16, (3, 1), strides=(1,1), activation='relu', padding='same')(Y)
 
-    Z = Conv2D(16, (1, 1), strides=(1,1))(X_input)
+    W = MaxPooling2D((3,3), strides=(1,1), padding='same')(X_input)
+    W = Conv2D(16, (1, 1), strides=(1,1), activation='relu', padding='same')(W)
 
-    W = MaxPooling2D((3,3), padding='same')(X_input)
-    W = Conv2D(16, (1, 1), strides=(1,1))(W)
+    Z = Conv2D(16, (1, 1), strides=(1,1), activation='relu', padding='same')(X_input)
 
-    output = concatenate([X, Y, W], axis=-1)
+    output = concatenate([X, Y, W, Z], axis=-1)
+
+    output  =Flatten()(output)
+    output = Dense(out_size, activation='softmax')(output)
 
     model = Model(inputs=X_input, output=output)
 
     return model
    
+def svdf1rank_layer(input_size, num_nodes, memory_size):   
+
+    # input_size = (batch, num_frames, num_coeff, channels)
+
+    X_input = Input(input_size)
+
+    X = Reshape((input_size[1] * input_size[2], input_size[0]))(X_input)
+   
+    filters = Input((num_nodes, memory_size))
+
+    for t in range(input_size[0]):
+        # filters_at_t = Input((0,0))
+        obtained_filter = []
+        for m in range(num_nodes):
+            out = Lambda(lambda X: X[:, :, t], name = "Lambda_1")(X)
+            current_time_step = Reshape((input_size[1] * input_size[2], 1))(out)
+            # obtained_filter.append(Conv1D(1, kernel_size=1, strides=1)(current_time_step))
+            Y = Flatten()(current_time_step)
+            Y = Dense(1, activation='linear')(Y)
+            obtained_filter.append(Y)
+            # filt = Conv1D(1, kernel_size=1, strides=1)(X)
+            # filters_at_t = concatenate([filters_at_t, filt], axis=-1)
+        # filters=concatenate([filters, filt], axis=0)
+        time_filter = Concatenate(axis = -1)([m for m in obtained_filter])
+        time_filter = Reshape((num_nodes, 1))(time_filter)
+
+        memory = Lambda(lambda X: X[:, :, 1:], name = "Lambda_2")(filters)
+        filters = Concatenate(axis=-1)([memory, time_filter])
+
+    time_selection = Dense(num_nodes, activation='linear')(filters)
+
+    print('time_selection', type(time_selection))
+
+    model = Model(inputs = X_input, outputs = time_selection, name='svdf1rank_layer')
+
+    # return the model instance
+    return model
+
+def svdf(input_size, out_size, **params):   
+
+    # input_size = (batch, num_frames, num_coeff, channels)
+
+    X_input = Input(input_size)
+
+    X = svdf1rank_layer(input_size, 15, 17)(X_input)
+
+    print(X.shape)
+
+    model = Model(inputs=X_input, outputs=filters)
+
+    return model
+            
+
 # test of functionalities
 if __name__ == "__main__":
 
