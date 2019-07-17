@@ -293,7 +293,7 @@ def create_dataset(input_path,
 
     class_names = sorted(class_names)
 
-    class_paths = [input_path + cn for cn in class_names]
+    class_paths = [input_path + cn + "/" for cn in class_names]
 
     # get number of classes
     number_of_classes = len(class_paths)
