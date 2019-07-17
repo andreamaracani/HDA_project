@@ -42,42 +42,34 @@ scale_delta_delta = 1 / (max_delta2 - min_delta2)
 input_path = "data/"
 class_names = ["00 zero/", "01 one/"]  # set to None to use all classes
 
+
 training_x, validation_x, test_x, training_y, validation_y, test_y = \
-    u.create_dataset_and_split(input_path,
-                               class_names=class_names,
-                               training_percentage=0.7,
-                               validation_percentage=0.3,
-                               test_percentage=None,
-                               training_samples=None,
-                               validation_samples=None,
-                               test_samples=200,
+    u.create_dataset(input_path=input_path,
+                     class_names=class_names,
 
-                               pre_emphasis_coef=0.95,
-                               frame_length=400,
-                               frame_step=160,
-                               window_function=np.hamming,
-                               target_frame_number=110,
-                               random_time_shift=True,
-                               smooth=True,
-                               smooth_length=5,
+                     pre_emphasis_coef=0.95,
+                     frame_length=400,
+                     frame_step=160,
+                     window_function=np.hamming,
+                     target_frame_number=110,
+                     random_time_shift=True,
+                     smooth=True,
+                     smooth_length=5,
 
-                               hertz_from=300,
-                               hertz_to=None,
-                               number_of_filters=40,
-                               power_of_2=True,
-                               dtype='float32',
-                               use_dct=False,
-                               add_delta=True,
+                     hertz_from=300,
+                     hertz_to=None,
+                     number_of_filters=40,
+                     power_of_2=True,
+                     dtype='float32',
+                     use_dct=False,
+                     add_delta=True,
 
-                               # NORMALIZATION
-                               shift_static=shift_static,
-                               scale_static=scale_static,
-                               shift_delta=shift_delta,
-                               scale_delta=scale_delta,
-                               shift_delta_delta=shift_delta_delta,
-                               scale_delta_delta=scale_delta_delta,
+                     # NORMALIZATION
+                     shift_static=0, scale_static=1,
+                     shift_delta=0, scale_delta=1,
+                     shift_delta_delta=0, scale_delta_delta=1,
 
-                               exclude_augmentation=True,
-                               augmentation_folder="augmentation",
+                     exclude_augmentation=False,
+                     augmentation_folder="augmentation",
 
-                               print_info=True)
+                     print_info=True)
