@@ -1,14 +1,18 @@
 import numpy as np
-import tensorflow as tf
+
 import os
 import datetime
-from keras import layers
-from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, Concatenate
-from keras.layers import Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU, Conv1D, concatenate, TimeDistributed, ZeroPadding1D, LocallyConnected1D, ZeroPadding2D
+
+from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, \
+    Concatenate, Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU, Conv1D, concatenate, Bidirectional, \
+    CuDNNLSTM, Dot, Softmax, ZeroPadding2D
+
 from keras.models import Model, Sequential
 from keras.models import save_model, load_model
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
+
+from keras import backend
 
 class ASRModel(object):
 
@@ -25,28 +29,29 @@ class ASRModel(object):
             Exception: If the architecture type isn't recognized.
         """
         
-        if (architecture == 'toy-model'):
+        if architecture == 'toy-model':
             self.architecture = toy_model(input_size, out_size, **params)
-        elif (architecture == 'cnn-trad-fpool3'):
+        elif architecture == 'cnn-trad-fpool3':
             self.architecture = cnn_trad_fpool3(input_size, out_size, **params)
-        elif (architecture == 'module-network'):
+        elif architecture == 'module-network':
             self.architecture = module_model(input_size, out_size, **params)
-        elif (architecture == 'improved-cnn-trad-fpool3'):
+        elif architecture == 'improved-cnn-trad-fpool3':
             self.architecture = improved_cnn_trad_fpool3(input_size, out_size, **params)
-        elif (architecture == 'sequential-model'):
+        elif architecture == 'sequential-model':
             self.architecture = sequential_model(input_size, out_size, **params)
-        elif (architecture == 'rnn'):
+        elif architecture == 'rnn':
             self.architecture = rnn(input_size, out_size, **params)
-        elif (architecture == 'cnn-attention-rnn'):
+        elif architecture == 'cnn-attention-rnn':
             self.architecture = cnn_attention_rnn(input_size, out_size, **params)
-        elif (architecture == 'inception'):
+        elif architecture == 'inception':
             self.architecture = inception(input_size, out_size, **params)
-        elif (architecture == 'svdf'):
+        elif architecture == 'svdf':
             self.architecture = svdf(input_size, out_size, **params)
+        elif architecture == 'AttRNNSpeechModel':
+            self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
-        
-        sequential_model
+
     def save(self):
 
         """
@@ -93,7 +98,7 @@ def toy_model(input_shape, out_size, **params):
     X_input = Input(input_shape)
 
     # flattening x
-    X = Flatten()(X)
+    X = Flatten()(X_input)
 
     # Fully connected
     X = Dense(128, activation='softmax', name='softmax-layer')(X)
@@ -279,60 +284,6 @@ def sequential_model(input_shape, out_size, **params):
     return model
 
 
-
-
-    """
-    Implements a convolutional network as composition of convolutional blocks
-
-    Args:
-        input_shape: size of the input to the network
-        params: dictionary of parameters that defines the structure
-
-    Returns:
-        the convolutional block
-    """
-
-    # retrieving the params
-    pooling_size = params['pooling_size']
-    stride = params['stride']
-    kernel = params['kernel']
-    filters = params['filters']
-    hidden_layers = params['hidden_layers']
-    dropout_prob = params['dropout_prob']
-
-    if(len(filters) != hidden_layers):
-        raise Exception('The number of filters must be equal to the number of blocks')
-    
-    print(input_size)
-    # placeholder for input
-    X_input = Input(input_size)
-
-    # adding the first convolutional layer
-    X = block(input_size, filters[0], kernel=(3, 3), strides=stride, pooling_size=pooling_size)(X_input)
-    input_size = X.shape[1:]
-    # print(X.shape)
-    for layer in range(hidden_layers-1):
-        print('ciao')
-        print(input_size)
-        X = block(input_size, filters[layer+1], kernel=kernel, strides=stride, pooling_size=pooling_size, dropout_prob=dropout_prob)(X)
-        input_size = X.shape[1:]
-    # flatten the filters
-    X = Flatten()(X)
-
-    # linear: linear layer with 32 units
-    X = Dense(64, activation='linear', name='linear')(X)
-
-    # relu: fully connected layer with 128 relu activation units
-    X = Dense(128, activation='relu', name='relu')(X)
-
-    # softmax: softmax layer
-    X = Dense(out_size, activation='softmax', name='softmax')(X)
-
-    model = Model(inputs=X_input, outputs=X)
-
-    return model
-
-
 def block(input_size, filters, kernel=(3, 3), strides=(1, 1), pooling_size=(1, 1), dropout_prob=0.3):
     """
     Implements a convolutional block composed as
@@ -480,6 +431,42 @@ def cnn_attention_rnn(input_size, out_size, **params):
     output = Dense(out_size, activation='softmax')(attention_mul)
     model = Model(input=X_input, output=output)
     return model
+
+
+def AttRNNSpeechModel(input_size, out_size, **params):
+
+
+    X_input = Input(input_size)
+
+    X = Conv2D(10, (5, 1), activation='relu', padding='same')(X_input)
+    X = BatchNormalization()(X)
+    X = Conv2D(1, (5, 1), activation='relu', padding='same')(X)
+    X = BatchNormalization()(X)
+
+    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+
+    X = Bidirectional(CuDNNLSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(CuDNNLSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+
+    xFirst = Lambda(lambda q: q[:, 64])(X)  # [b_s, vec_dim]
+    query = Dense(128)(xFirst)
+
+    # dot product attention
+    attScores = Dot(axes=[1, 2])([query, X])
+    attScores = Softmax(name='attSoftmax')(attScores)  # [b_s, seq_len]
+
+    # rescale sequence
+    attVector = Dot(axes=[1, 1])([attScores, X])  # [b_s, vec_dim]
+
+    X = Dense(64, activation='relu')(attVector)
+    X = Dense(32)(X)
+
+    output = Dense(out_size, activation='softmax', name='output')(X)
+
+    model = Model(input=X_input, output=output)
+
+    return model
+
 
 def inception(input_size, out_size, **params):
 
