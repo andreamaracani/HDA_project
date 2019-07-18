@@ -1,6 +1,6 @@
 python3 src/train.py \
 --datasetpath="data/" \
---architecture="cnn-trad-fpool3" \
+--architecture="inception" \
 --batchsize=64 \
 --ckp_folder="checkpoints/" \
 --num_epochs=20 \
