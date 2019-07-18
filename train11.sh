@@ -10,5 +10,5 @@ python3 src/train.py \
 --target_frame_number=110 \
 --add_delta=True \
 --normalization_method=2 \
---exclude_augmentation=false \
+--exclude_augmentation=True \
     
