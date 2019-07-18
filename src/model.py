@@ -29,24 +29,26 @@ class ASRModel(object):
             Exception: If the architecture type isn't recognized.
         """
         
-        if (architecture == 'toy-model'):
+        if architecture == 'toy-model':
             self.architecture = toy_model(input_size, out_size, **params)
-        elif (architecture == 'cnn-trad-fpool3'):
+        elif architecture == 'cnn-trad-fpool3':
             self.architecture = cnn_trad_fpool3(input_size, out_size, **params)
-        elif (architecture == 'module-network'):
+        elif architecture == 'module-network':
             self.architecture = module_model(input_size, out_size, **params)
-        elif (architecture == 'improved-cnn-trad-fpool3'):
+        elif architecture == 'improved-cnn-trad-fpool3':
             self.architecture = improved_cnn_trad_fpool3(input_size, out_size, **params)
-        elif (architecture == 'sequential-model'):
+        elif architecture == 'sequential-model':
             self.architecture = sequential_model(input_size, out_size, **params)
-        elif (architecture == 'rnn'):
+        elif architecture == 'rnn':
             self.architecture = rnn(input_size, out_size, **params)
-        elif (architecture == 'cnn-attention-rnn'):
+        elif architecture == 'cnn-attention-rnn':
             self.architecture = cnn_attention_rnn(input_size, out_size, **params)
-        elif (architecture == 'inception'):
+        elif architecture == 'inception':
             self.architecture = inception(input_size, out_size, **params)
-        elif (architecture == 'svdf'):
+        elif architecture == 'svdf':
             self.architecture = svdf(input_size, out_size, **params)
+        elif architecture == 'AttRNNSpeechModel':
+            self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
         
@@ -97,7 +99,7 @@ def toy_model(input_shape, out_size, **params):
     X_input = Input(input_shape)
 
     # flattening x
-    X = Flatten()(X)
+    X = Flatten()(X_input)
 
     # Fully connected
     X = Dense(128, activation='softmax', name='softmax-layer')(X)
