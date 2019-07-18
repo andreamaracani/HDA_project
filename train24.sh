@@ -1,4 +1,5 @@
 python3 src/train.py \
+--name="train24_" \
 --datasetpath="data/" \
 --architecture="improved-cnn-trad-fpool3" \
 --batchsize=64 \

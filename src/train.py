@@ -26,6 +26,7 @@ def get_args():
 
     # Dataset arguments
     parser.add_argument('--datasetpath', type=str, default='data/', help='Path of the dataset')
+    parser.add_argument('--name', type=str, default='prova', help='Name of the train')
 
     # noise samples creation
     parser.add_argument('--noise_source_path', type=str, default='files/', help='Path of the noise source')
@@ -284,7 +285,7 @@ if __name__ == "__main__":
     # training_logs_folder = os.path.join(os.getcwd(), training_logs_folder)
     if not os.path.isdir(training_logs_folder):
         os.makedirs(training_logs_folder)
-    filepath = os.path.join(training_logs_folder, 'training' + str(date) + '.json')
+    filepath = os.path.join(training_logs_folder, str(args.name) + str(date) + '.json')
 
     # building data:
     training_data = {'params': vars(args), 'model': model.architecture.to_json(),\
