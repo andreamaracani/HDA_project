@@ -1,13 +1,17 @@
 import numpy as np
-import tensorflow as tf
+
 import os
 import datetime
-from keras import layers
-from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, Concatenate
-from keras.layers import Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU, Conv1D, concatenate
+
+from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, \
+    Concatenate, Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU, Conv1D, concatenate, Bidirectional, \
+    CuDNNLSTM, Dot, Softmax
+
 from keras.models import Model, Sequential
 from keras.models import save_model, load_model
 from keras.callbacks import ModelCheckpoint
+
+from keras import backend
 
 class ASRModel(object):
 
@@ -476,6 +480,42 @@ def cnn_attention_rnn(input_size, out_size, **params):
     output = Dense(out_size, activation='softmax')(attention_mul)
     model = Model(input=X_input, output=output)
     return model
+
+
+def AttRNNSpeechModel(input_size, out_size, **params):
+
+
+    X_input = Input(input_size)
+
+    X = Conv2D(10, (5, 1), activation='relu', padding='same')(X_input)
+    X = BatchNormalization()(X)
+    X = Conv2D(1, (5, 1), activation='relu', padding='same')(X)
+    X = BatchNormalization()(X)
+
+    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+
+    X = Bidirectional(CuDNNLSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(CuDNNLSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+
+    xFirst = Lambda(lambda q: q[:, 64])(X)  # [b_s, vec_dim]
+    query = Dense(128)(xFirst)
+
+    # dot product attention
+    attScores = Dot(axes=[1, 2])([query, X])
+    attScores = Softmax(name='attSoftmax')(attScores)  # [b_s, seq_len]
+
+    # rescale sequence
+    attVector = Dot(axes=[1, 1])([attScores, X])  # [b_s, vec_dim]
+
+    X = Dense(64, activation='relu')(attVector)
+    X = Dense(32)(X)
+
+    output = Dense(out_size, activation='softmax', name='output')(X)
+
+    model = Model(input=X_input, output=output)
+
+    return model
+
 
 def inception(input_size, out_size, **params):
 
