@@ -447,11 +447,16 @@ def AttRNNSpeechModel(input_size, out_size, **params):
 
     X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
 
-    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
-    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
-
-    xFirst = Lambda(lambda q: q[:, 64])(X)  # [b_s, vec_dim]
-    query = Dense(128)(xFirst)
+    X = Bidirectional(LSTM(64, return_sequences=True), merge_mode="sum")(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True), merge_mode="sum")(X)  # [b_s, seq_len, vec_dim]
+    X = BatchNormalization()(X)
+    # print("bidirectional: ", X.shape)
+    # xFirst = Lambda(lambda q: q[:, 64-1:64+1])(X)  # [b_s, vec_dim]
+    # print("xfirst", xFirst.shape)
+    # xFirst = Flatten()(xFirst)
+    # query = Dense(128)(xFirst)
+    query = Dense(64)(X)
+    print("query", query.shape)
 
     # dot product attention
     attScores = Dot(axes=[1, 2])([query, X])
