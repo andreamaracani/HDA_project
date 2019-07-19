@@ -136,13 +136,13 @@ if __name__ == "__main__":
         shift_delta_delta = -min_delta2
         scale_delta_delta = 1 / (max_delta2 - min_delta2)
 
-    # class_names = ['00 zero', '01 one', '02 two', '03 three', '04 four', '05 five', '06 six', \
-    #                '07 seven', '08 eight', '09 nine', '10 go', '11 yes', '12 no', '13 on', '14 off', '15 forward', \
-    #                '16 backward', '17 left', '18 right', '19 up', '20 down', '21 stop', '22 visual', '23 follow', \
-    #                '24 learn', '25 silence', '26 unknown']
+    class_names = ['00 zero', '01 one', '02 two', '03 three', '04 four', '05 five', '06 six', \
+                   '07 seven', '08 eight', '09 nine', '10 go', '11 yes', '12 no', '13 on', '14 off', '15 forward', \
+                   '16 backward', '17 left', '18 right', '19 up', '20 down', '21 stop', '22 visual', '23 follow', \
+                   '24 learn', '25 silence', '26 unknown']
 
-    class_names = ['10 go','15 forward',\
-            '16 backward','17 left','18 right','19 up','20 down','21 stop', '25 silence', '26 unknown']
+    # class_names = ['10 go','15 forward',\
+    #         '16 backward','17 left','18 right','19 up','20 down','21 stop', '25 silence', '26 unknown']
 
 
     # class_names = ['00 zero', '01 one']
@@ -204,6 +204,7 @@ if __name__ == "__main__":
     model.architecture.compile(optimizer="adam",
                                loss="categorical_crossentropy",
                                metrics=["accuracy"])
+    model.architecture.summary()
 
     # passing to one-hot encoded
     Y_train = to_categorical(Y_train, num_classes)
@@ -229,7 +230,7 @@ if __name__ == "__main__":
     history = model.architecture.fit(x=X_train, y=Y_train, epochs=args.num_epochs, batch_size=args.batchsize,
                                      validation_data=(X_val, Y_val), callbacks=callbacks)
 
-    model.architecture.summary()
+    
 
     print("#######################")
     print("Evaluating the model")
