@@ -5,7 +5,7 @@ import datetime
 
 from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, \
     Concatenate, Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU, Conv1D, concatenate, Bidirectional, \
-    CuDNNLSTM, Dot, Softmax, ZeroPadding2D
+    LSTM, Dot, Softmax, ZeroPadding2D
 
 from keras.models import Model, Sequential
 from keras.models import save_model, load_model
@@ -48,6 +48,8 @@ class ASRModel(object):
         elif architecture == 'svdf':
             self.architecture = svdf(input_size, out_size, **params)
         elif architecture == 'AttRNNSpeechModel':
+            self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
+        elif architecture == 'ImprovedAttRNNSpeechModel':
             self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
@@ -445,8 +447,66 @@ def AttRNNSpeechModel(input_size, out_size, **params):
 
     X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
 
-    X = Bidirectional(CuDNNLSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
-    X = Bidirectional(CuDNNLSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+
+    xFirst = Lambda(lambda q: q[:, 64])(X)  # [b_s, vec_dim]
+    query = Dense(128)(xFirst)
+
+    # dot product attention
+    attScores = Dot(axes=[1, 2])([query, X])
+    attScores = Softmax(name='attSoftmax')(attScores)  # [b_s, seq_len]
+
+    # rescale sequence
+    attVector = Dot(axes=[1, 1])([attScores, X])  # [b_s, vec_dim]
+
+    X = Dense(64, activation='relu')(attVector)
+    X = Dense(32)(X)
+
+    output = Dense(out_size, activation='softmax', name='output')(X)
+
+    model = Model(input=X_input, output=output)
+
+    return model
+
+def ImprovedAttRNNSpeechModel(input_size, out_size, **params):
+
+
+    X_input = Input(input_size)
+
+     # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
+    dropout_prob = params['dropout_prob']
+    X = Conv2D(16, (5, 3), strides=(1, 1), activation='relu', name='conv0', padding='same')(X_input)
+    X = BatchNormalization()(X)
+    X=  Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv0b', padding='same')(X)
+    X=  Conv2D(16, (3, 3), strides=(1, 1), activation='relu', name='conv0c', padding='same')(X)
+    X = BatchNormalization()(X)
+    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
+    X = Dropout(dropout_prob)(X)
+
+    # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
+    X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv1', padding='same')(X)
+    X = Conv2D(16, (3, 1), strides=(1, 1), activation='relu', name='conv1a', padding='same')(X)
+    X = BatchNormalization()(X)
+    X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv1b', padding='same')(X)
+    X = Conv2D(1, (3, 1), strides=(1, 1), activation='relu', name='conv1c', padding='same')(X)
+    X = BatchNormalization()(X)
+    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
+    X = Dropout(dropout_prob)(X)
+
+
+    X = Conv2D(16, (5, 3), strides=(1, 1), activation='relu', name='conv2', padding='same')(X_input)
+    X = BatchNormalization()(X)
+    X=  Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv2b', padding='same')(X)
+    X=  Conv2D(16, (3, 3), strides=(1, 1), activation='relu', name='conv2c', padding='same')(X)
+    X = BatchNormalization()(X)
+    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
+    X = Dropout(dropout_prob)(X)
+
+    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
 
     xFirst = Lambda(lambda q: q[:, 64])(X)  # [b_s, vec_dim]
     query = Dense(128)(xFirst)
