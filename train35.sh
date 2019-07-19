@@ -1,7 +1,7 @@
 python3 src/train.py \
 --datasetpath="data/" \
 --name="train35_" \
---architecture="improved_cnn_trad_fpool3" \
+--architecture="improved-cnn-trad-fpool3" \
 --batchsize=64 \
 --ckp_folder="checkpoints/" \
 --num_epochs=20 \
