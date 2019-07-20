@@ -5,7 +5,7 @@ import datetime
 
 from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, \
     Concatenate, Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU, Conv1D, concatenate, Bidirectional, \
-    CuDNNLSTM, Dot, Softmax
+    LSTM, Dot, Softmax, ZeroPadding2D
 
 from keras.models import Model, Sequential
 from keras.models import save_model, load_model
@@ -49,10 +49,11 @@ class ASRModel(object):
             self.architecture = svdf(input_size, out_size, **params)
         elif architecture == 'AttRNNSpeechModel':
             self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
+        elif architecture == 'ImprovedAttRNNSpeechModel':
+            self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
-        
-        sequential_model
+
     def save(self):
 
         """
@@ -285,60 +286,6 @@ def sequential_model(input_shape, out_size, **params):
     return model
 
 
-
-
-    """
-    Implements a convolutional network as composition of convolutional blocks
-
-    Args:
-        input_shape: size of the input to the network
-        params: dictionary of parameters that defines the structure
-
-    Returns:
-        the convolutional block
-    """
-
-    # retrieving the params
-    pooling_size = params['pooling_size']
-    stride = params['stride']
-    kernel = params['kernel']
-    filters = params['filters']
-    hidden_layers = params['hidden_layers']
-    dropout_prob = params['dropout_prob']
-
-    if(len(filters) != hidden_layers):
-        raise Exception('The number of filters must be equal to the number of blocks')
-    
-    print(input_size)
-    # placeholder for input
-    X_input = Input(input_size)
-
-    # adding the first convolutional layer
-    X = block(input_size, filters[0], kernel=(3, 3), strides=stride, pooling_size=pooling_size)(X_input)
-    input_size = X.shape[1:]
-    # print(X.shape)
-    for layer in range(hidden_layers-1):
-        print('ciao')
-        print(input_size)
-        X = block(input_size, filters[layer+1], kernel=kernel, strides=stride, pooling_size=pooling_size, dropout_prob=dropout_prob)(X)
-        input_size = X.shape[1:]
-    # flatten the filters
-    X = Flatten()(X)
-
-    # linear: linear layer with 32 units
-    X = Dense(64, activation='linear', name='linear')(X)
-
-    # relu: fully connected layer with 128 relu activation units
-    X = Dense(128, activation='relu', name='relu')(X)
-
-    # softmax: softmax layer
-    X = Dense(out_size, activation='softmax', name='softmax')(X)
-
-    model = Model(inputs=X_input, outputs=X)
-
-    return model
-
-
 def block(input_size, filters, kernel=(3, 3), strides=(1, 1), pooling_size=(1, 1), dropout_prob=0.3):
     """
     Implements a convolutional block composed as
@@ -500,8 +447,71 @@ def AttRNNSpeechModel(input_size, out_size, **params):
 
     X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
 
-    X = Bidirectional(CuDNNLSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
-    X = Bidirectional(CuDNNLSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True), merge_mode="sum")(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True), merge_mode="sum")(X)  # [b_s, seq_len, vec_dim]
+    X = BatchNormalization()(X)
+    # print("bidirectional: ", X.shape)
+    # xFirst = Lambda(lambda q: q[:, 64-1:64+1])(X)  # [b_s, vec_dim]
+    # print("xfirst", xFirst.shape)
+    # xFirst = Flatten()(xFirst)
+    # query = Dense(128)(xFirst)
+    query = Dense(64)(X)
+    print("query", query.shape)
+
+    # dot product attention
+    attScores = Dot(axes=[1, 2])([query, X])
+    attScores = Softmax(name='attSoftmax')(attScores)  # [b_s, seq_len]
+
+    # rescale sequence
+    attVector = Dot(axes=[1, 1])([attScores, X])  # [b_s, vec_dim]
+
+    X = Dense(64, activation='relu')(attVector)
+    X = Dense(32)(X)
+
+    output = Dense(out_size, activation='softmax', name='output')(X)
+
+    model = Model(input=X_input, output=output)
+
+    return model
+
+def ImprovedAttRNNSpeechModel(input_size, out_size, **params):
+
+
+    X_input = Input(input_size)
+
+     # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
+    dropout_prob = params['dropout_prob']
+    X = Conv2D(16, (5, 3), strides=(1, 1), activation='relu', name='conv0', padding='same')(X_input)
+    X = BatchNormalization()(X)
+    X=  Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv0b', padding='same')(X)
+    X=  Conv2D(16, (3, 3), strides=(1, 1), activation='relu', name='conv0c', padding='same')(X)
+    X = BatchNormalization()(X)
+    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
+    X = Dropout(dropout_prob)(X)
+
+    # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
+    X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv1', padding='same')(X)
+    X = Conv2D(16, (3, 1), strides=(1, 1), activation='relu', name='conv1a', padding='same')(X)
+    X = BatchNormalization()(X)
+    X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv1b', padding='same')(X)
+    X = Conv2D(1, (3, 1), strides=(1, 1), activation='relu', name='conv1c', padding='same')(X)
+    X = BatchNormalization()(X)
+    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
+    X = Dropout(dropout_prob)(X)
+
+
+    X = Conv2D(16, (5, 3), strides=(1, 1), activation='relu', name='conv2', padding='same')(X_input)
+    X = BatchNormalization()(X)
+    X=  Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv2b', padding='same')(X)
+    X=  Conv2D(16, (3, 3), strides=(1, 1), activation='relu', name='conv2c', padding='same')(X)
+    X = BatchNormalization()(X)
+    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
+    X = Dropout(dropout_prob)(X)
+
+    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
 
     xFirst = Lambda(lambda q: q[:, 64])(X)  # [b_s, vec_dim]
     query = Dense(128)(xFirst)
@@ -553,54 +563,43 @@ def inception(input_size, out_size, **params):
    
 def svdf1rank_layer(input_size, num_nodes, memory_size):   
 
-    # input_size = (batch, num_frames, num_coeff, channels)
+    # input_size = (num_frames, num_coeff, channels)
 
     X_input = Input(input_size)
 
-    X = Reshape((input_size[1] * input_size[2], input_size[0]))(X_input)
-   
-    filters = Input((num_nodes, memory_size))
-
+    X = Reshape((input_size[0],input_size[1] * input_size[2],1))(X_input)
+    X = ZeroPadding2D((memory_size, 0))(X)
+    prova = []
     for t in range(input_size[0]):
-        # filters_at_t = Input((0,0))
-        obtained_filter = []
-        for m in range(num_nodes):
-            Y = Lambda(lambda x: x[:, :, t], name = "Lambda_1")(X)
-            Y = Reshape((input_size[1] * input_size[2], 1))(Y)
-            # obtained_filter.append(Conv1D(1, kernel_size=1, strides=1)(current_time_step))
-            Y = Flatten()(Y)
-            Y = Dense(1, activation='linear')(Y)
-            obtained_filter.append(Y)
-            # filt = Conv1D(1, kernel_size=1, strides=1)(X)
-            # filters_at_t = concatenate([filters_at_t, filt], axis=-1)
-        # filters=concatenate([filters, filt], axis=0)
-        time_filter = Concatenate(axis = -1)([m for m in obtained_filter])
-        print('here1')
-        time_filter = Reshape((num_nodes, 1))(time_filter)
-        print('here2')
-        memory = Lambda(lambda x: x[:, :, 1:], name = "Lambda_2")(filters)
-        print('here3')
-        filters = Concatenate(axis=-1)([memory, time_filter])
-    
-    print('here4')
-    time_selection = Dense(num_nodes, activation='linear')(filters)
+        Y = Lambda(lambda x: x[:, t: t + memory_size, :])(X)
+        Y = Reshape((memory_size * input_size[1] * input_size[2], 1))(Y)
+        Y = Conv1D(num_nodes, input_size[1]*input_size[2], strides=input_size[1]*input_size[2])(Y)
+        Y = Reshape((memory_size * num_nodes, 1))(Y)
+        Y = Conv1D(1, memory_size, strides=memory_size)(Y)
+        Y = Reshape((1, num_nodes))(Y)
+        prova.append(Y)
 
-    print('time_selection', type(time_selection))
-
-    model = Model(inputs = [X_input, filters], outputs = time_selection, name='svdf1rank_layer')
+    X = Concatenate(axis=1)(prova)
+    X = Activation('relu')(X)
+    model = Model(inputs=X_input, outputs=X)
 
     # return the model instance
     return model
 
 def svdf(input_size, out_size, **params):   
 
-    # input_size = (batch, num_frames, num_coeff, channels)
+    # input_size = (num_frames, num_coeff, channels)
 
     X_input = Input(input_size)
 
-    X = svdf1rank_layer(input_size, 15, 17)(X_input)
+    X = svdf1rank_layer(input_size, 400, memory_size=8)(X_input)
+    X = svdf1rank_layer((input_size[0], 400, 1), 400, memory_size=8)(X)
+    X = svdf1rank_layer((input_size[0], 400, 1), 400, memory_size=8)(X)
+    X = svdf1rank_layer((input_size[0], 400, 1), 400, memory_size=8)(X)
 
     print(X.shape)
+    X = Flatten()(X)
+    X= Dense(out_size, activation='softmax')(X)
 
     model = Model(inputs=X_input, outputs=X)
 

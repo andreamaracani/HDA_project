@@ -209,6 +209,7 @@ if __name__ == "__main__":
     model.architecture.compile(optimizer="adam",
                                loss="categorical_crossentropy",
                                metrics=["accuracy"])
+    model.architecture.summary()
 
     model.architecture.summary()
 
