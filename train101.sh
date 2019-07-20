@@ -1,7 +1,7 @@
 python3 src/train.py \
 --datasetpath="data/" \
---name="vm100" \
---architecture="AttRNNSpeechModel" \
+--name="vm101" \
+--architecture="LSTM_merge" \
 --batchsize=64 \
 --ckp_folder="checkpoints/" \
 --num_epochs=20 \
