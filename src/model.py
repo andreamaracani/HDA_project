@@ -49,6 +49,8 @@ class ASRModel(object):
             self.architecture = svdf(input_size, out_size, **params)
         elif architecture == 'AttRNNSpeechModel':
             self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
+        elif architecture == 'LSTM_merge':
+            self.architecture = LSTM_merge(input_size, out_size, **params)
         elif architecture == 'ImprovedAttRNNSpeechModel':
             self.architecture = ImprovedAttRNNSpeechModel(input_size, out_size, **params)
         else:
@@ -434,6 +436,47 @@ def cnn_attention_rnn(input_size, out_size, **params):
     model = Model(input=X_input, output=output)
     return model
 
+#
+# def AttRNNSpeechModel(input_size, out_size, **params):
+#
+#
+#     X_input = Input(input_size)
+#
+#     X = Conv2D(10, (5, 1), activation='relu', padding='same')(X_input)
+#     X = BatchNormalization()(X)
+#     X = Conv2D(1, (5, 1), activation='relu', padding='same')(X)
+#     X = BatchNormalization()(X)
+#
+#     X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+#
+#     X = Bidirectional(LSTM(64, return_sequences=True), merge_mode="sum")(X)  # [b_s, seq_len, vec_dim]
+#     X = Bidirectional(LSTM(64, return_sequences=True), merge_mode="sum")(X)  # [b_s, seq_len, vec_dim]
+#     X = BatchNormalization()(X)
+#     # print("bidirectional: ", X.shape)
+#     # xFirst = Lambda(lambda q: q[:, 64-1:64+1])(X)  # [b_s, vec_dim]
+#     # print("xfirst", xFirst.shape)
+#     # xFirst = Flatten()(xFirst)
+#     # query = Dense(128)(xFirst)
+#     query = Dense(64)(X)
+#     print("query", query.shape)
+#
+#     # dot product attention
+#     attScores = Dot(axes=[1, 2])([query, X])
+#     attScores = Softmax(name='attSoftmax')(attScores)  # [b_s, seq_len]
+#
+#     # rescale sequence
+#     attVector = Dot(axes=[1, 1])([attScores, X])  # [b_s, vec_dim]
+#
+#     X = Dense(64, activation='relu')(attVector)
+#     X = Dense(32)(X)
+#
+#     output = Dense(out_size, activation='softmax', name='output')(X)
+#
+#     model = Model(input=X_input, output=output)
+#
+#     return model
+
+
 
 def AttRNNSpeechModel(input_size, out_size, **params):
 
@@ -468,6 +511,36 @@ def AttRNNSpeechModel(input_size, out_size, **params):
     model = Model(input=X_input, output=output)
 
     return model
+
+
+
+def LSTM_merge(input_size, out_size, **params):
+
+    X_input = Input(input_size)
+
+    X = Conv2D(10, (5, 1), activation='relu', padding='same')(X_input)
+    X = BatchNormalization()(X)
+    X = Conv2D(1, (5, 1), activation='relu', padding='same')(X)
+    X = BatchNormalization()(X)
+
+
+    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+
+    X = LSTM(1, return_sequences=True)(X)  # [b_s, seq_len, 1]
+
+    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim2')(X)
+
+    X = Dense(64, activation='relu')(X)
+    X = Dense(32)(X)
+    output = Dense(out_size, activation='softmax', name='output')(X)
+
+    model = Model(input=X_input, output=output)
+
+    return model
+
 
 def ImprovedAttRNNSpeechModel(input_size, out_size, **params):
 

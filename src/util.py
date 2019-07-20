@@ -74,6 +74,74 @@ def delete_folder_for_each_class(input_path="data/", folder_name="augmentation/"
         shutil.rmtree(class_paths[c] + folder_name, ignore_errors=True)
 
 
+def rename_files_folder(folder_path):
+
+    path = os.path.dirname(folder_path)
+
+    folder_name = os.path.basename(path)
+
+    path, class_names, files = os.walk(folder_path).__next__()
+
+    for i in range(len(files)):
+        shutil.move(folder_path+files[i], folder_path + folder_name + "_" + files[i])
+
+
+def rename_all_files(input_path):
+
+    path, class_names, files = os.walk(input_path).__next__()
+
+    class_names = sorted(class_names)
+    class_paths = [input_path + cn + "/" for cn in class_names]
+
+    for c in  class_paths:
+        path, subfolders, files = os.walk(c).__next__()
+
+        if len(subfolders) == 0:
+            rename_files_folder(c)
+        else:
+            sub_paths = [c + "/" + s + "/" for s in subfolders]
+            for s in sub_paths:
+                rename_files_folder(s)
+
+
+def load_training_and_test(training_path, test_path):
+
+    path, class_names, files = os.walk(training_path).__next__()
+
+    class_names = sorted(class_names)
+
+    class_paths_train = [training_path + cn + "/" for cn in class_names]
+    class_paths_test = [test_path + cn + "/" for cn in class_names ]
+
+    # get number of classes
+    number_of_classes = len(class_paths_train)
+
+    # for every class
+    for c in range(number_of_classes):
+
+        if not os.path.exists(class_paths_train[c] + "training/"):
+            os.makedirs(class_paths_train[c] + "training/")
+        if not os.path.exists(class_paths_train[c] + "test/"):
+            os.makedirs(class_paths_train[c] + "test/")
+
+        # all available file paths for class c
+        files_train = get_all_files(class_paths_train[c], exclude_directory_name=None)
+        files_test = get_all_files(class_paths_test[c], exclude_directory_name=None)
+
+
+        number_of_files_train = len(files_train)
+        number_of_files_test = len(files_test)
+
+        for i in range(number_of_files_train):
+            file_name = ntpath.basename(files_train[i])
+            shutil.move(files_train[i], class_paths_train[c] + "training/" + file_name)
+
+        for i in range(number_of_files_test):
+            file_name = ntpath.basename(files_test[i])
+            shutil.move(files_test[i], class_paths_train[c] + "test/" + file_name)
+
+
+
 def organize_dataset(input_path,
                      training_percentage=None,
                      validation_percentage=None,
