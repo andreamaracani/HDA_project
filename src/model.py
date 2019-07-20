@@ -5,7 +5,7 @@ import datetime
 
 from keras.layers import Input, Dense, Activation, BatchNormalization, Flatten, Conv2D, MaxPooling2D, Dropout, \
     Concatenate, Permute, LSTM, Reshape, RepeatVector, Lambda, Multiply, GRU, Conv1D, concatenate, Bidirectional, \
-    LSTM, Dot, Softmax, ZeroPadding2D
+    GRU, Dot, Softmax, ZeroPadding2D
 
 from keras.models import Model, Sequential
 from keras.models import save_model, load_model
@@ -50,7 +50,7 @@ class ASRModel(object):
         elif architecture == 'AttRNNSpeechModel':
             self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
         elif architecture == 'ImprovedAttRNNSpeechModel':
-            self.architecture = AttRNNSpeechModel(input_size, out_size, **params)
+            self.architecture = ImprovedAttRNNSpeechModel(input_size, out_size, **params)
         else:
             raise Exception('Model architecture not recognized')
 
@@ -447,16 +447,11 @@ def AttRNNSpeechModel(input_size, out_size, **params):
 
     X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
 
-    X = Bidirectional(LSTM(64, return_sequences=True), merge_mode="sum")(X)  # [b_s, seq_len, vec_dim]
-    X = Bidirectional(LSTM(64, return_sequences=True), merge_mode="sum")(X)  # [b_s, seq_len, vec_dim]
-    X = BatchNormalization()(X)
-    # print("bidirectional: ", X.shape)
-    # xFirst = Lambda(lambda q: q[:, 64-1:64+1])(X)  # [b_s, vec_dim]
-    # print("xfirst", xFirst.shape)
-    # xFirst = Flatten()(xFirst)
-    # query = Dense(128)(xFirst)
-    query = Dense(64)(X)
-    print("query", query.shape)
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+    X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+
+    xFirst = Lambda(lambda q: q[:, 64])(X)  # [b_s, vec_dim]
+    query = Dense(128)(xFirst)
 
     # dot product attention
     attScores = Dot(axes=[1, 2])([query, X])
@@ -479,39 +474,80 @@ def ImprovedAttRNNSpeechModel(input_size, out_size, **params):
 
     X_input = Input(input_size)
 
+    X = Conv2D(32, (5, 1), activation='relu', padding='same')(X_input) # [b_s, 5, 1, 10]
+    X = BatchNormalization()(X)
+
+    print("first conv:", X.shape)
+
+    Y = Conv2D(32, (5, 1), activation='relu', padding='same')(X) # [b_s, seq_len, 40, 1]
+    Y = BatchNormalization()(Y)
+
+    Z = Conv2D(32, (5, 1), activation='relu', padding='same')(Y) # [b_s, seq_len, 40, 1]
+    Z = BatchNormalization()(Z)
+
+    W = Conv2D(16, (5, 1), activation='relu', padding='same')(Z) # [b_s, seq_len, 40, 1]
+    W = BatchNormalization()(W)
+
+    U = Conv2D(1, (5, 1), activation='relu', padding='same')(W) # [b_s, seq_len, 40, 1]
+    U = BatchNormalization()(U)
+    
+    print("second conv:", X.shape)
+
+    encoding_info = Concatenate(axis = -1)([X, Y, Z, W, U]) #[b_s, seq_len, 40, 32*5]
+
+    print(X.shape)
+    print(Y.shape)
+    print(Z.shape)
+    print(W.shape)
+    print(U.shape)
+
+    print(encoding_info.shape)
+    print("input_size:", input_size[0], input_size[1], input_size[2])
+    # encoding_info = Flatten()(encoding_info)
+    encoding_info = Reshape((input_size[0], -1))(X)
+    encoding_info = Dense(128, activation='relu')(encoding_info)
+    
+    print(encoding_info.shape)
      # conv0:convolution layer with 64 filters, kernel size freq=64, time=9, stride(1, 1)
-    dropout_prob = params['dropout_prob']
-    X = Conv2D(16, (5, 3), strides=(1, 1), activation='relu', name='conv0', padding='same')(X_input)
-    X = BatchNormalization()(X)
-    X=  Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv0b', padding='same')(X)
-    X=  Conv2D(16, (3, 3), strides=(1, 1), activation='relu', name='conv0c', padding='same')(X)
-    X = BatchNormalization()(X)
-    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
-    X = Dropout(dropout_prob)(X)
+    # dropout_prob = params['dropout_prob']
+    # X = Conv2D(16, (5, 3), strides=(1, 1), activation='relu', name='conv0', padding='same')(X_input)
+    # X = BatchNormalization()(X)
+    # X=  Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv0b', padding='same')(X)
+    # X=  Conv2D(16, (3, 3), strides=(1, 1), activation='relu', name='conv0c', padding='same')(X)
+    # X = BatchNormalization()(X)
+    # X = MaxPooling2D((1, 3), name='maxpool1', padding='same')(X)
+    # X = Dropout(dropout_prob)(X)
+    # # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
+    # X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv1', padding='same')(X)
+    # X = Conv2D(16, (3, 1), strides=(1, 1), activation='relu', name='conv1a', padding='same')(X)
+    # X = BatchNormalization()(X)
+    # X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv1b', padding='same')(X)
+    # X = Conv2D(16, (3, 1), strides=(1, 1), activation='relu', name='conv1c', padding='same')(X)
+    # X = BatchNormalization()(X)
+    # X = MaxPooling2D((1, 3), name='maxpool2', padding='same')(X)
+    # X = Dropout(dropout_prob)(X)
 
-    # conv1:convolution layer with 64 filters, kernel size freq=32, time=4, stride(1, 1)
-    X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv1', padding='same')(X)
-    X = Conv2D(16, (3, 1), strides=(1, 1), activation='relu', name='conv1a', padding='same')(X)
-    X = BatchNormalization()(X)
-    X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv1b', padding='same')(X)
-    X = Conv2D(1, (3, 1), strides=(1, 1), activation='relu', name='conv1c', padding='same')(X)
-    X = BatchNormalization()(X)
-    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
-    X = Dropout(dropout_prob)(X)
+    # X = Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv2', padding='same')(X)
+    # X = Conv2D(16, (3, 1), strides=(1, 1), activation='relu', name='conv2a', padding='same')(X)
+    # X = BatchNormalization()(X)
+    # X=  Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv2b', padding='same')(X)
+    # X=  Conv2D(1, (3, 3), strides=(1, 1), activation='relu', name='conv2c', padding='same')(X)
+    # X = BatchNormalization()(X)
+    # X = MaxPooling2D((1, 3), name='maxpool3', padding='same')(X)
+    # X = Dropout(dropout_prob)(X)
 
-
-    X = Conv2D(16, (5, 3), strides=(1, 1), activation='relu', name='conv2', padding='same')(X_input)
-    X = BatchNormalization()(X)
-    X=  Conv2D(16, (1, 3), strides=(1, 1), activation='relu', name='conv2b', padding='same')(X)
-    X=  Conv2D(16, (3, 3), strides=(1, 1), activation='relu', name='conv2c', padding='same')(X)
-    X = BatchNormalization()(X)
-    X = MaxPooling2D((1, 3), name='maxpool', padding='same')(X)
-    X = Dropout(dropout_prob)(X)
-
-    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(U)  # keras.backend.squeeze(x, axis)
 
     X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
     X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
+
+    X = Concatenate(axis=1)([X, encoding_info])
+    print("after bidir", X.shape)
+    # xFirst = Flatten()(X)
+    # query = Dense(128)(xFirst)    # [b_s, seq_len, vec_dim]
+    # print("query", xFirst.shape)
+    # print("X", X.shape)
+
 
     xFirst = Lambda(lambda q: q[:, 64])(X)  # [b_s, vec_dim]
     query = Dense(128)(xFirst)
