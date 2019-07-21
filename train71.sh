@@ -1,6 +1,6 @@
 python3 src/train.py \
 --datasetpath="data/" \
---name="train31_" \
+--name="train71_" \
 --architecture="improved-cnn-trad-fpool3" \
 --batchsize=64 \
 --ckp_folder="checkpoints/" \
