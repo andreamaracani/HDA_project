@@ -211,7 +211,6 @@ if __name__ == "__main__":
                                metrics=["accuracy"])
     model.architecture.summary()
 
-    model.architecture.summary()
 
     class_weights = class_weight.compute_class_weight('balanced',
                                                       np.unique(Y_train),
