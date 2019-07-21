@@ -237,8 +237,8 @@ if __name__ == "__main__":
     # callbacks.append(earlystopping)
 
     # comment these to avoid swap
-    X_val = X_test
-    Y_val = Y_test
+    # X_val = X_test
+    # Y_val = Y_test
 
     history = model.architecture.fit(x=X_train, y=Y_train, epochs=args.num_epochs, batch_size=args.batchsize,
                                      validation_data=(X_val, Y_val), callbacks=callbacks, class_weight=class_weights)
