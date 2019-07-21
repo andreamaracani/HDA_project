@@ -1,54 +1,99 @@
 from kivy.app import App
-from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.lang import Builder
-from kivy.properties import StringProperty, ObjectProperty
-from plyer import battery
+from kivy.properties import NumericProperty
+from kivy.properties import ObjectProperty
+from kivy.uix.boxlayout import BoxLayout
+
 
 Builder.load_string('''
-<BatteryInterface>:
-    lbl1: lbl1
-    lbl2: lbl2
-    FloatLayout:
-        Button:
-            size_hint_y: None
-            pos_hint: {'y': .5}
-            text: "Battery Status"
-            on_press: root.get_status()
-        BoxLayout:
-            size_hint_y: None
-            pos_hint: {'y': .1}
-            Label:
-                text: "Is Charging?"
-            Label:
-                id: lbl1
-                text:
-            Label:
-                text: "Percentage"
-            Label:
-                id: lbl2
-                text:
+#:import audio_player plyer.audio
+<AudioInterface>:
+    audio: audio_player
+    orientation: 'vertical'
+    padding: '50dp'
+    spacing: '20dp'
+    Label:
+        id: state_label
+        size_hint_y: None
+        height: sp(40)
+        text: 'AudioPlayer State: ' + str(root.audio.state)
+    Label:
+        id: location_label
+        size_hint_y: None
+        height: sp(40)
+        text: 'Recording Location: ' + str(root.audio.file_path)
+    Button:
+        id: record_button
+        text: 'Start Recording'
+        on_release: root.start_recording()
+    Button:
+        id: play_button
+        text: 'Play'
+        on_release: root.play_recording()
 ''')
 
 
-class BatteryInterface(BoxLayout):
-    lbl1 = ObjectProperty()
-    lbl2 = ObjectProperty()
+class AudioInterface(BoxLayout):
+    '''Root Widget.'''
 
-    def get_status(self, *args):
-        self.lbl1.text = str(battery.status['isCharging'])
-        self.lbl2.text = str(battery.status['percentage']) + "%"
+    audio = ObjectProperty()
+    time = NumericProperty(0)
+
+    has_record = False
+
+    def start_recording(self):
+        state = self.audio.state
+        if state == 'ready':
+            self.audio.start()
+
+        if state == 'recording':
+            self.audio.stop()
+            self.has_record = True
+
+        self.update_labels()
+
+    def play_recording(self):
+        state = self.audio.state
+        if state == 'playing':
+            self.audio.stop()
+        else:
+            self.audio.play()
+
+        self.update_labels()
+
+    def update_labels(self):
+        record_button = self.ids['record_button']
+        play_button = self.ids['play_button']
+        state_label = self.ids['state_label']
+
+        state = self.audio.state
+        state_label.text = 'AudioPlayer State: ' + state
+
+        play_button.disabled = not self.has_record
+
+        if state == 'ready':
+            record_button.text = 'Start Recording'
+
+        if state == 'recording':
+            record_button.text = 'Press to Stop Recording'
+            play_button.disabled = True
+
+        if state == 'playing':
+            play_button.text = 'Stop'
+            record_button.disabled = True
+        else:
+            play_button.text = 'Press to play'
+            record_button.disabled = False
 
 
-class BatteryApp(App):
+class AudioApp(App):
 
     def build(self):
-        return BatteryInterface()
+        return AudioInterface()
 
     def on_pause(self):
         return True
 
 
 if __name__ == "__main__":
-    app = BatteryApp()
-    app.run()
+    AudioApp().run()

@@ -1,10 +1,10 @@
 [app]
 
 # (str) Title of your application
-title = Plyer Battery Example
+title = Plyer Audio Example
 
 # (str) Package name
-package.name = batteryexample
+package.name = audioexample
 
 # (str) Package domain (needed for android/ios packaging)
 package.domain = org.test
@@ -29,7 +29,7 @@ source.include_exts = py,png,jpg,kv,atlas
 #version.filename = %(source.dir)s/main.py
 
 # (str) Application versioning (method 2)
-version = 1.0
+version = 0.1
 
 # (list) Application requirements
 # comma seperated e.g. requirements = sqlite3,kivy
@@ -60,7 +60,7 @@ fullscreen = 0
 #
 
 # (list) Permissions
-android.permissions = BATTERY_STATS
+android.permissions = RECORD_AUDIO,WAKE_LOCK
 
 # (int) Android API to use
 #android.api = 14
