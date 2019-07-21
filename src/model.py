@@ -12,8 +12,6 @@ from keras.models import save_model, load_model
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-from keras import backend
-
 class ASRModel(object):
 
     def __init__(self, architecture, input_size, out_size,  **params):
@@ -72,14 +70,14 @@ class ASRModel(object):
         return date
 
 
-def load(filepath):
+def load(filepath, custom_objects):
     """
     Load the model from the filepath
 
     Args:
-        model: model to save
+        model: model to load
     """ 
-    model = load_model(filepath)
+    model = load_model(filepath, custom_objects)
 
     return model
 
@@ -488,7 +486,7 @@ def AttRNNSpeechModel(input_size, out_size, **params):
     X = Conv2D(1, (5, 1), activation='relu', padding='same')(X)
     X = BatchNormalization()(X)
 
-    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+    X = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim')(X)
 
     X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
     X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
@@ -524,14 +522,14 @@ def LSTM_merge(input_size, out_size, **params):
     X = BatchNormalization()(X)
 
 
-    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
+    X = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim')(X)  # keras.backend.squeeze(x, axis)
 
     X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
     X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
 
     X = LSTM(1, return_sequences=True)(X)  # [b_s, seq_len, 1]
 
-    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim2')(X)
+    X = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim2')(X)
 
     X = Dense(64, activation='relu')(X)
     X = Dense(32)(X)
@@ -609,7 +607,7 @@ def ImprovedAttRNNSpeechModel(input_size, out_size, **params):
     # X = MaxPooling2D((1, 3), name='maxpool3', padding='same')(X)
     # X = Dropout(dropout_prob)(X)
 
-    X = Lambda(lambda q: backend.squeeze(q, -1), name='squeeze_last_dim')(U)  # keras.backend.squeeze(x, axis)
+    X = Lambda(lambda q: K.squeeze(q, -1), name='squeeze_last_dim')(U)  # keras.backend.squeeze(x, axis)
 
     X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
     X = Bidirectional(LSTM(64, return_sequences=True))(X)  # [b_s, seq_len, vec_dim]
