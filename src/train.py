@@ -144,7 +144,7 @@ if __name__ == "__main__":
             # '16 backward','17 left','18 right','19 up','20 down','21 stop', '25 silence', '26 unknown']
 
 
-    class_names = ['17 left','18 right']
+    class_names = ['17 left','18 right', '25 silence', '26 unknown']
 
     # class_names = ["00 on", "01 off", "02 up", "03 down", "04 left", "05 right", "06 yes", "07 no", "08 go", "09 stop",
     #                "10 silence", "11 unknown"]
@@ -193,7 +193,7 @@ if __name__ == "__main__":
 
     # retrieve input size
     input_size = X_train.shape[1:]
-
+    print("train schape", X_train.shape)
     # initialize the network
     model = ASRModel(architecture=args.architecture,
                      input_size=input_size,
