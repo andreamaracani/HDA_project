@@ -25,3 +25,4 @@ checkpoints/*
 !checkpoints/.gitkeep 
 
 training_logs/*
+!training_logs/.gitkeep 
