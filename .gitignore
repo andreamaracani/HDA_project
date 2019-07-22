@@ -24,3 +24,4 @@ plots/*
 checkpoints/*
 !checkpoints/.gitkeep 
 
+training_logs/*
