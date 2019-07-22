@@ -26,7 +26,6 @@ Config.set('graphics', 'height', '800')
 
 Builder.load_string('''
 
-#:import audio_player plyer.audio
 <AudioInterface>:
     BoxLayout:
             
