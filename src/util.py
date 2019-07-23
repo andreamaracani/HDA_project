@@ -141,7 +141,6 @@ def load_training_and_test(training_path, test_path):
             shutil.move(files_test[i], class_paths_train[c] + "test/" + file_name)
 
 
-
 def organize_dataset(input_path,
                      training_percentage=None,
                      validation_percentage=None,
@@ -845,6 +844,7 @@ def get_all_files(input_path, exclude_directory_name=None):
     files_list = []
 
     while len(directories) > 0:
+
         current_dir = directories.pop()
 
         path, dirs, files = os.walk(current_dir).__next__()

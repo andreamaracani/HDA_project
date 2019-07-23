@@ -5,14 +5,15 @@ import features as f
 from scipy.io import wavfile
 import keras.backend as K
 
-model_path = 'models/21-07-2019,12-20-29'
+model_path = 'models/22-07-2019,15-09-08'
 wav_file = 'files/1.wav'
+
+# access wav file
+fs, signal = wavfile.read(wav_file)
 
 # load the models
 model = load(model_path, custom_objects={"backend": K})
 
-# access wav file
-fs, signal = wavfile.read(wav_file)
 
 # get features
 features = f.get_time_padded_features(signal, sample_rate=fs,

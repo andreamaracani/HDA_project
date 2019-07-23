@@ -140,16 +140,11 @@ if __name__ == "__main__":
                 #    '16 backward', '17 left', '18 right', '19 up', '20 down', '21 stop', '22 visual', '23 follow', \
                 #    '24 learn', '25 silence', '26 unknown']
 
-    # class_names = ['10 go','15 forward',\
-            # '16 backward','17 left','18 right','19 up','20 down','21 stop', '25 silence', '26 unknown']
+
+    class_names = ["00 on", "01 off", "02 up", "03 down", "04 left", "05 right", "06 yes", "07 no", "08 go", "09 stop",
+                   "10 silence", "11 unknown"]
 
 
-    class_names = ['04 left','05 right', '10 silence', '11 unknown']
-
-    # class_names = ["00 on", "01 off", "02 up", "03 down", "04 left", "05 right", "06 yes", "07 no", "08 go", "09 stop",
-    #                "10 silence", "11 unknown"]
-
-    # class_names = ["02 up", "03 down", "10 silence", "11 unknown"]
 
     num_classes = len(class_names)
 
@@ -158,7 +153,7 @@ if __name__ == "__main__":
     kernel = tuple(args.kernel)
 
     X_train, X_val, X_test, Y_train, Y_val, Y_test, = \
-        u.create_dataset("data/",
+        u.create_dataset(args.datasetpath,
                          class_names=class_names,
 
                          pre_emphasis_coef=args.pre_emphasis_coef,
@@ -226,7 +221,7 @@ if __name__ == "__main__":
     # out_dir = os.path.join(os.getcwd(), out_dir)
     if not os.path.isdir(out_dir):
         os.makedirs(out_dir)
-    out_dir = os.path.join(out_dir, 'ckp')
+    out_dir = os.path.join(out_dir, 'best_model')
 
     checkpoint = ModelCheckpoint(out_dir, monitor='val_acc', verbose=0, save_best_only=True, save_weights_only=False,
                                  mode='auto', period=1)
@@ -236,9 +231,9 @@ if __name__ == "__main__":
     # earlystopping = EarlyStopping(monitor='val_acc', min_delta=0, patience=0, verbose=0, mode='auto', baseline=None, restore_best_weights=False)
     # callbacks.append(earlystopping)
 
-    # comment these to avoid swap
-    X_val = X_test
-    Y_val = Y_test
+    # uncomment if you dont have a validation
+    # X_val = X_test
+    # Y_val = Y_test
 
     history = model.architecture.fit(x=X_train, y=Y_train, epochs=args.num_epochs, batch_size=args.batchsize,
                                      validation_data=(X_val, Y_val), callbacks=callbacks, class_weight=class_weights)

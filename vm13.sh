@@ -1,1 +1,0 @@
-bash train25.sh

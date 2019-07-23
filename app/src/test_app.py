@@ -9,7 +9,8 @@ from kivy.uix.widget import Widget
 from kivy.config import Config
 import pyaudio
 import wave
-
+import keras.backend as K
+from model import load
 
 import matplotlib.pyplot as plt
 
@@ -27,8 +28,8 @@ Config.set('graphics', 'height', '800')
 Builder.load_string('''
 
 <AudioInterface>:
+
     BoxLayout:
-            
         orientation:'vertical'
         size: root.width, root.height
         
@@ -52,7 +53,7 @@ Builder.load_string('''
         GridLayout:
             cols:6
             Button:
-
+                id: id0
                 text: 'On'
                 bold: True
                 font_size: '25sp'
@@ -63,7 +64,7 @@ Builder.load_string('''
                 
              
             Button:
-
+                id: id1
                 text: 'Off'
                 bold: True
                 font_size: '25sp'
@@ -74,7 +75,7 @@ Builder.load_string('''
               
                 
             Button:
-
+                id: id2
                 text: 'Up'
                 bold: True
                 font_size: '25sp'
@@ -85,7 +86,7 @@ Builder.load_string('''
                
                 
             Button:
-
+                id: id3
                 text: 'Down'
                 bold: True
                 font_size: '25sp'
@@ -96,7 +97,7 @@ Builder.load_string('''
               
                 
             Button:
-
+                id: id4
                 text: 'Left'
                 bold: True
                 font_size: '25sp'
@@ -107,7 +108,7 @@ Builder.load_string('''
                 
                 
             Button:
-
+                id: id5
                 text: 'Right'
                 bold: True
                 font_size: '25sp'
@@ -118,7 +119,7 @@ Builder.load_string('''
                 
                 
             Button:
-
+                id: id6
                 text: 'Yes'
                 bold: True
                 font_size: '25sp'
@@ -129,7 +130,7 @@ Builder.load_string('''
            
                 
             Button:
-
+                id: id7
                 text: 'No'
                 bold: True
                 font_size: '25sp'
@@ -140,7 +141,7 @@ Builder.load_string('''
          
                 
             Button:
-
+                id: id8
                 text: 'Go'
                 bold: True
                 font_size: '25sp'
@@ -151,7 +152,7 @@ Builder.load_string('''
             
                 
             Button:
-
+                id: id9
                 text: 'Stop'
                 bold: True
                 font_size: '25sp'
@@ -162,7 +163,7 @@ Builder.load_string('''
             
                 
             Button:
-
+                id: id10
                 text: 'Silence'
                 bold: True
                 font_size: '25sp'
@@ -173,7 +174,7 @@ Builder.load_string('''
                
                 
             Button:
-
+                id: id11
                 text: 'Unknown'
                 bold: True
                 font_size: '25sp'
@@ -200,7 +201,7 @@ Builder.load_string('''
                 background_down: 'img/button_down.png'
                 size: 200,200
                 size_hint: None, None
-                on_press:  root.start_recording(wav_plot, f_plot)
+                on_release:  root.start_recording(wav_plot, f_plot, id0, id1, id2, id3, id4, id5, id6, id7, id8, id9, id10,id11)
                 
             Image:
                 source: 'img/right.jpg'
@@ -220,11 +221,41 @@ class AudioInterface(Widget):
     FORMAT = pyaudio.paInt16
     CHANNELS = 1
     RATE = 16000
-    RECORD_SECONDS = 1.5
+    RECORD_SECONDS = 1
+    MODEL_PATH = 'models/model'
 
-    def start_recording(self, wav_plot_instance, f_plot_instance):
 
-        print("start...")
+    model = load(MODEL_PATH, custom_objects={"backend": K})
+
+    def start_recording(self, wav_plot_instance, f_plot_instance, id0, id1, id2, id3, id4, id5, id6, id7, id8, id9, id10, id11):
+
+
+        id0.background_normal = 'img/label_b.png'
+        id0.background_down = 'img/label_b.png'
+        id1.background_normal = 'img/label_b.png'
+        id1.background_down = 'img/label_b.png'
+        id2.background_normal = 'img/label_b.png'
+        id2.background_down = 'img/label_b.png'
+        id3.background_normal = 'img/label_b.png'
+        id3.background_down = 'img/label_b.png'
+        id4.background_normal = 'img/label_b.png'
+        id4.background_down = 'img/label_b.png'
+        id5.background_normal = 'img/label_b.png'
+        id5.background_down = 'img/label_b.png'
+        id6.background_normal = 'img/label_b.png'
+        id6.background_down = 'img/label_b.png'
+        id7.background_normal = 'img/label_b.png'
+        id7.background_down = 'img/label_b.png'
+        id8.background_normal = 'img/label_b.png'
+        id8.background_down = 'img/label_b.png'
+        id9.background_normal = 'img/label_b.png'
+        id9.background_down = 'img/label_b.png'
+        id10.background_normal = 'img/label_b.png'
+        id10.background_down = 'img/label_b.png'
+        id11.background_normal = 'img/label_b.png'
+        id11.background_down = 'img/label_b.png'
+
+
         audio = pyaudio.PyAudio()
 
         # start Recording
@@ -258,6 +289,8 @@ class AudioInterface(Widget):
         fs, data = wavfile.read(self.WAVE_OUTPUT_FILENAME)
         data = data[-16000:]
 
+
+        #####################################     PLOT 1     ###########################################################
         # create and save WAV plot
         fig = plt.figure(figsize=(20, 4))
         ax = fig.add_subplot(111)
@@ -282,13 +315,49 @@ class AudioInterface(Widget):
         wav_plot_instance.source = "tmp/fig1.png"
         wav_plot_instance.reload()
 
+        ####################################     FEATURES     ##########################################################
+
+
         # evaluate features
-        features = f.get_time_padded_features(data, fs, 200, frame_length=400, frame_step=160, number_of_filters=40,
-                                              add_delta=False, random_time_shift=False)
+        features = f.get_time_padded_features(data, sample_rate=fs,
+                                              # PADDING
+                                              target_frame_number=135,
+                                              random_time_shift=True,
+                                              smooth=True,
+                                              smooth_length=5,
+
+                                              pre_emphasis_coef=0.95,
+                                              # FRAMING PARAMETERS
+                                              frame_length=1024,
+                                              frame_step=128,
+                                              window_function=np.hamming,
+
+                                              # MEL FILTERS PARAMETERS
+                                              hertz_from=300,
+                                              hertz_to=None,
+                                              number_of_filters=80,
+
+                                              # FFT PARAMETERS
+                                              power_of_2=True,
+
+                                              # OUTPUT SETTINGS
+                                              dtype='float32',
+                                              use_dct=False,
+                                              add_delta=False,
+
+                                              # NORMALIZATION
+                                              shift_static=0,
+                                              scale_static=1,
+                                              shift_delta=0,
+                                              scale_delta=1,
+                                              shift_delta_delta=0,
+                                              scale_delta_delta=1)
         # max and min
         fmin = np.min(features[:, :, 0])
         fmax = np.max(features[:, :, 0])
 
+
+        #####################################     PLOT 2     ###########################################################
         # create features plot
         fig = plt.figure(figsize=(20, 4))
 
@@ -317,6 +386,51 @@ class AudioInterface(Widget):
         f_plot_instance.source = "tmp/fig2.png"
         f_plot_instance.reload()
 
+        ################################################################################################################
+        #
+
+        # adding batch dim
+        prediction = self.model.predict(np.expand_dims(features, axis=0))
+
+        print("prediction =", str(prediction))
+        choice = np.argmax(prediction)
+
+        if choice == 0:
+            id0.background_normal = 'img/label_b_sel.png'
+            id0.background_down = 'img/label_b_sel.png'
+        if choice == 1:
+            id1.background_normal = 'img/label_b_sel.png'
+            id1.background_down = 'img/label_b_sel.png'
+        if choice == 2:
+            id2.background_normal = 'img/label_b_sel.png'
+            id2.background_down = 'img/label_b_sel.png'
+        if choice == 3:
+            id3.background_normal = 'img/label_b_sel.png'
+            id3.background_down = 'img/label_b_sel.png'
+        if choice == 4:
+            id4.background_normal = 'img/label_b_sel.png'
+            id4.background_down = 'img/label_b_sel.png'
+        if choice == 5:
+            id5.background_normal = 'img/label_b_sel.png'
+            id5.background_down = 'img/label_b_sel.png'
+        if choice == 6:
+            id6.background_normal = 'img/label_b_sel.png'
+            id6.background_down = 'img/label_b_sel.png'
+        if choice == 7:
+            id7.background_normal = 'img/label_b_sel.png'
+            id7.background_down = 'img/label_b_sel.png'
+        if choice == 8:
+            id8.background_normal = 'img/label_b_sel.png'
+            id8.background_down = 'img/label_b_sel.png'
+        if choice == 9:
+            id9.background_normal = 'img/label_b_sel.png'
+            id9.background_down = 'img/label_b_sel.png'
+        if choice == 10:
+            id10.background_normal = 'img/label_b_sel.png'
+            id10.background_down = 'img/label_b_sel.png'
+        if choice == 11:
+            id11.background_normal = 'img/label_b_sel.png'
+            id11.background_down = 'img/label_b_sel.png'
 
 
 class HDAApp(App):
