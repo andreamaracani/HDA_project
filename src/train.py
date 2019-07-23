@@ -136,13 +136,14 @@ if __name__ == "__main__":
         scale_delta_delta = 1 / (max_delta2 - min_delta2)
 
     # class_names = ['00 zero', '01 one', '02 two', '03 three', '04 four', '05 five', '06 six', \
-                #    '07 seven', '08 eight', '09 nine', '10 go', '11 yes', '12 no', '13 on', '14 off', '15 forward', \
-                #    '16 backward', '17 left', '18 right', '19 up', '20 down', '21 stop', '22 visual', '23 follow', \
-                #    '24 learn', '25 silence', '26 unknown']
+    #               '07 seven', '08 eight', '09 nine', '10 go', '11 yes', '12 no', '13 on', '14 off', '15 forward', \
+    #               '16 backward', '17 left', '18 right', '19 up', '20 down', '21 stop', '22 visual', '23 follow', \
+    #               '24 learn', '25 silence', '26 unknown']
 
 
     class_names = ["00 on", "01 off", "02 up", "03 down", "04 left", "05 right", "06 yes", "07 no", "08 go", "09 stop",
                    "10 silence", "11 unknown"]
+
 
 
 
